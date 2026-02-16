@@ -1,0 +1,29 @@
+:root {
+  /* ===== Base（整頁背景，馬卡龍奶油感） ===== */
+  --color-bg: #FFF7F4;          /* 奶油粉白 */
+  --color-bg-muted: #F0E6E1;    /* 淡奶茶邊界 */
+  --color-shell: #F4E8E2; /* Header / Footer 專用底色 */
+
+  /* ===== Surface（卡片） ===== */
+  --color-surface: #FFFFFF;     /* 主卡片一定要白，才能讀 */
+  --color-surface-muted: #F8EFEA; /* 馬卡龍淡粉（小卡、欄位） */
+
+  /* ===== Border（拉層次，a11y 關鍵） ===== */
+  --color-border: #D4C6BE;
+
+  /* ===== Accent（CTA / 互動） ===== */
+  /* 來自馬卡龍「莓果紅」但加深，白字 AA OK */
+  --color-accent: #C84C61;
+  --color-accent-hover: #B64356;
+  --color-accent-text: #7A1E2C;
+
+  /* ===== State ===== */
+  --color-state-loading: #C84C61;
+  --color-state-error: #B42318;
+  --color-state-success: #067647;
+
+  /* ===== Text（穩定可讀，過 AA） ===== */
+  --color-text-primary: #1F2328;   /* 主文字 */
+  --color-text-secondary: #3E3A38; /* 說明 */
+  --color-text-muted: #6F6661;     /* label / hint */
+}

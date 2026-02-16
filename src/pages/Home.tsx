@@ -214,7 +214,17 @@ const Home = () => {
       setIsLoading(false);
 
       if (window.matchMedia("(max-width: 767px)").matches) {
-        resultSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        const headerEl =
+          document.querySelector<HTMLElement>("#app-header") ??
+          document.querySelector<HTMLElement>('[data-role="app-header"]') ??
+          document.querySelector<HTMLElement>("header");
+
+        const headerHeight = headerEl?.offsetHeight ?? 72;
+        const resultTop =
+          (resultSectionRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY;
+        const top = Math.max(0, resultTop - headerHeight);
+
+        window.scrollTo({ top, behavior: "smooth" });
       }
     }, 900);
   };
@@ -248,7 +258,7 @@ const Home = () => {
         <div className="lg:col-span-5">
           <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 md:p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-(--color-text-primary)">輸入資料</h2>
-            <p className="mt-1 text-sm text-(--color-text-secondary)">先用假資料示意版面，之後再接表單。</p>
+            <p className="mt-1 text-sm text-(--color-text-secondary)">請輸入基本資料，系統將自動換算並產生結果。</p>
 
             <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
               <fieldset className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
@@ -563,5 +573,3 @@ const Home = () => {
 };
 
 export default Home;
-
-

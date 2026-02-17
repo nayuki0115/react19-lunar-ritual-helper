@@ -5,6 +5,7 @@ import {
   formatLunarBirthday,
   getEffectiveToday,
   getGanzhiYear,
+  getLunarYear,
   getLunarYearGanzhi,
   getRocYearFromLunarYear,
   getZodiac,
@@ -137,10 +138,9 @@ const Home = () => {
   }, []);
 
   const canSubmit = Boolean(formValue.gender && formValue.birthDate);
-  const hasCommittedResult = Boolean(committedValue.gender && committedValue.birthDate);
 
   const effectiveToday = useMemo(() => getEffectiveToday(23, "Asia/Taipei"), []);
-  const effectiveYear = effectiveToday.getUTCFullYear();
+  const todayLunarYear = useMemo(() => getLunarYear(effectiveToday), [effectiveToday]);
 
   const todayLunarMd = useMemo(() => formatLunarMD(effectiveToday), [effectiveToday]);
   const todayGanzhiYear = useMemo(() => getGanzhiYear(effectiveToday), [effectiveToday]);
@@ -180,6 +180,11 @@ const Home = () => {
     return getZodiac(birthDateObject);
   }, [birthDateObject]);
 
+  const birthLunarYear = useMemo(() => {
+    if (!birthDateObject) return null;
+    return getLunarYear(birthDateObject);
+  }, [birthDateObject]);
+
   const handRecommendation = useMemo(() => {
     if (committedValue.gender === "male") return "左手";
     if (committedValue.gender === "female") return "右手";
@@ -187,17 +192,16 @@ const Home = () => {
   }, [committedValue.gender]);
 
   const suiAge = useMemo(() => {
-    if (!committedValue.birthDate) return null;
-    const birthYear = Number.parseInt(committedValue.birthDate.slice(0, 4), 10);
-    if (Number.isNaN(birthYear)) return null;
-    return effectiveYear - birthYear + 1;
-  }, [committedValue.birthDate, effectiveYear]);
+    if (birthLunarYear === null) return null;
+    return todayLunarYear - birthLunarYear + 1;
+  }, [todayLunarYear, birthLunarYear]);
 
   const suiAgeSummary = useMemo(() => {
-    if (suiAge === null || !committedValue.birthDate) return "虛歲 = 今年年分 - 出生年 + 1（需先填生日）";
-    const birthYear = Number.parseInt(committedValue.birthDate.slice(0, 4), 10);
-    return `虛歲 = ${effectiveYear} - ${birthYear} + 1 = ${suiAge}`;
-  }, [suiAge, committedValue.birthDate, effectiveYear]);
+    if (suiAge === null || birthLunarYear === null) {
+      return "虛歲 = 農曆今年 - 農曆出生年 + 1（需先填生日）";
+    }
+    return `虛歲 = ${todayLunarYear} - ${birthLunarYear} + 1 = ${suiAge}`;
+  }, [suiAge, todayLunarYear, birthLunarYear]);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -261,8 +265,8 @@ const Home = () => {
             <p className="mt-1 text-sm text-(--color-text-secondary)">請輸入基本資料，系統將自動換算並產生結果。</p>
 
             <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
-              <fieldset className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                <legend className="px-1 text-xs text-(--color-text-muted)">性別（必填）</legend>
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
+                <div className="px-1 text-xs text-(--color-text-muted)">性別（必填）</div>
                 <div className="mt-2 flex gap-4">
                   <label className="inline-flex items-center gap-2 text-(--color-text-primary)">
                     <input
@@ -287,11 +291,12 @@ const Home = () => {
                     女
                   </label>
                 </div>
-              </fieldset>
+              </div>
 
               <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                <label htmlFor="birthDate" className="text-xs text-(--color-text-muted)">
-                  生日（必填）
+                <div className="px-1 text-xs text-(--color-text-muted)">生日（必填）</div>
+                <label htmlFor="birthDate" className="sr-only">
+                  國曆生日（必填）
                 </label>
                 <input
                   id="birthDate"
@@ -300,10 +305,13 @@ const Home = () => {
                   onChange={(e) => setFormValue((prev) => ({ ...prev, birthDate: e.target.value }))}
                   className="mt-2 block w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)"
                 />
+                <div className="mt-2 text-xs text-(--color-text-muted)">
+                  ※ 請輸入國曆生日，系統將自動換算農曆並判斷閏月。
+                </div>
               </div>
 
-              <fieldset className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                <legend className="px-1 text-xs text-(--color-text-muted)">出生時間（選填）</legend>
+              <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
+                <div className="px-1 text-xs text-(--color-text-muted)">出生時間（選填）</div>
 
                 <div className="mt-2 grid gap-2">
                   <label className="inline-flex items-center gap-2 text-(--color-text-primary)">
@@ -401,7 +409,7 @@ const Home = () => {
                 <div className="mt-2 text-xs text-(--color-text-muted)">
                   不知道出生時間也沒關係：可改用「時辰」或選擇「未知」。
                 </div>
-              </fieldset>
+              </div>
 
               <div className="mt-2 grid grid-cols-2 gap-3">
                 <button
@@ -524,26 +532,6 @@ const Home = () => {
               </div>
             </div>
 
-            {hasCommittedResult && committedValue.birthTimeKind === "unknown" && (
-              <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 md:p-6 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="font-semibold text-(--color-text-primary)">今日建議吉時（示意）</h3>
-                  <span className="rounded-full bg-(--color-bg-muted) px-2 py-1 text-xs text-(--color-text-secondary)">
-                    v0
-                  </span>
-                </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                    <div className="text-xs text-(--color-text-muted)">上午</div>
-                    <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">09:00 - 11:00</div>
-                  </div>
-                  <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                    <div className="text-xs text-(--color-text-muted)">下午</div>
-                    <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">15:00 - 17:00</div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </section>

@@ -1,4 +1,5 @@
 ﻿import { Lunar, Solar } from "lunar-javascript";
+import { toTraditionalChinese } from "./zh";
 
 export type ShichenCode =
   | "zi"
@@ -98,7 +99,7 @@ export const solarDateStringToDate = (value: string): Date => parseBirthDateTz(v
 
 export const getLunarYearGanzhi = (date: Date): string => {
   const lunar = toSolar(date).getLunar();
-  return lunar.getYearInGanZhi();
+  return toTraditionalChinese(lunar.getYearInGanZhi());
 };
 
 export const getRocYearFromLunarYear = (date: Date): number => {
@@ -131,7 +132,7 @@ export const formatLunarBirthday = (date: Date): string => {
     dayText = "三十";
   }
 
-  return `${monthText}${dayText}日`;
+  return toTraditionalChinese(`${monthText}${dayText}日`);
 };
 
 export const mapClockToShichen = (clockTime: string): ShichenCode | "" => {
@@ -160,28 +161,28 @@ export const mapToShichenLabel = (
   shichenCode?: string,
   clockTime?: string,
 ): string => {
-  if (birthTimeKind === "unknown") return "吉時";
+  if (birthTimeKind === "unknown") return toTraditionalChinese("吉時");
 
   if (birthTimeKind === "shichen") {
-    if (!shichenCode || !(shichenCode in SHICHEN_LABEL)) return "未知";
-    return `${SHICHEN_LABEL[shichenCode as ShichenCode]}時`;
+    if (!shichenCode || !(shichenCode in SHICHEN_LABEL)) return toTraditionalChinese("未知");
+    return toTraditionalChinese(`${SHICHEN_LABEL[shichenCode as ShichenCode]}時`);
   }
 
   const parsedClock = parseClock(clockTime);
-  if (!parsedClock) return "未知";
+  if (!parsedClock) return toTraditionalChinese("未知");
 
-  if (parsedClock.hour === 23) return "夜子時";
-  if (parsedClock.hour === 0) return "早子時";
+  if (parsedClock.hour === 23) return toTraditionalChinese("夜子時");
+  if (parsedClock.hour === 0) return toTraditionalChinese("早子時");
 
   const code = mapClockToShichen(clockTime ?? "");
-  if (!code) return "未知";
+  if (!code) return toTraditionalChinese("未知");
 
-  return `${SHICHEN_LABEL[code]}時`;
+  return toTraditionalChinese(`${SHICHEN_LABEL[code]}時`);
 };
 
 export const getZodiac = (date: Date): string => {
   const lunar = toSolar(date).getLunar();
-  return lunar.getYearShengXiao();
+  return toTraditionalChinese(lunar.getYearShengXiao());
 };
 
 const getZonedParts = (date: Date, timeZone: string) => {
@@ -221,12 +222,12 @@ export const getEffectiveToday = (boundaryHour = 23, timeZone = "Asia/Taipei"): 
 
 export const formatLunarMD = (date: Date): string => {
   const lunar = solarFromUtcDate(date).getLunar();
-  return `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`;
+  return toTraditionalChinese(`${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`);
 };
 
 export const getGanzhiYear = (date: Date): string => {
   const lunar = solarFromUtcDate(date).getLunar();
-  return `${lunar.getYearInGanZhi()}年`;
+  return toTraditionalChinese(`${lunar.getYearInGanZhi()}年`);
 };
 
 export const getLunarYear = (date: Date): number => {
@@ -236,5 +237,5 @@ export const getLunarYear = (date: Date): number => {
 
 export const getZodiacByLunarYear = (lunarYear: number): string => {
   const lunar = Lunar.fromYmd(lunarYear, 1, 1);
-  return `屬${lunar.getYearShengXiao()}`;
+  return toTraditionalChinese(`屬${lunar.getYearShengXiao()}`);
 };

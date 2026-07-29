@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { DEFAULT_FORM_STATE, FormState } from "@/utils/formSpec";
+import { DEFAULT_FORM_STATE, type FormState } from "@/utils/formSpec";
 import { URL_KEYS } from "@/utils/urlSpec";
 import { MESSAGES } from "@/utils/messages";
 
@@ -45,7 +45,7 @@ const readFromStorage = (): Partial<FormState> => {
   return stored ?? {};
 };
 
-const applyMutexRules = (prev: FormState, next: FormState, changedKey: keyof FormState): FormState => {
+const applyMutexRules = (next: FormState, changedKey: keyof FormState): FormState => {
   if (changedKey !== "timeMode") return next;
 
   if (next.timeMode === "unknown") return { ...next, timeBranch: undefined, timeExact: undefined };
@@ -70,7 +70,7 @@ export const useFormState = () => {
       <K extends keyof FormState>(key: K, value: FormState[K]) => {
         setFormState((prev) => {
           const next = { ...prev, [key]: value } as FormState;
-          return applyMutexRules(prev, next, key);
+          return applyMutexRules(next, key);
         });
       },
     []

@@ -181,13 +181,19 @@ pnpm dev
 pnpm lint
 ```
 
+### TypeScript typecheck
+
+```bash
+pnpm typecheck
+```
+
 ### Production build
 
 ```bash
 pnpm build
 ```
 
-TypeScript typecheck、Vitest 及統一品質檢查指令將在後續里程碑加入。
+Vitest 及統一品質檢查指令將在後續里程碑加入。
 
 Production：
 

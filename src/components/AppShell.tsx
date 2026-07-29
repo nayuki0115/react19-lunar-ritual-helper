@@ -23,8 +23,9 @@ const AppShell = ({ children }: Props) => {
 
   // Close on route change (切頁自動收起)
   useEffect(() => {
+    // Route changes are the event that resets this local UI state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     closeMenu();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   // Close when viewport becomes >= md (resize 自動收起)

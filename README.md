@@ -20,7 +20,7 @@
 - **Tailwind CSS 4**：樣式系統與響應式版面
 - **React Router**：頁面路由與分享連結參數
 - **lunar-javascript**：國曆、農曆、干支與生肖換算
-- **Vitest**：單元測試，將依重構里程碑導入
+- **Vitest**：單元測試與既有行為基準測試
 - **pnpm**：套件管理
 - **Vercel**：Preview 與 Production Deployment
 
@@ -187,13 +187,25 @@ pnpm lint
 pnpm typecheck
 ```
 
+### Unit tests
+
+```bash
+pnpm test
+```
+
+開發時持續監看：
+
+```bash
+pnpm test:watch
+```
+
 ### Production build
 
 ```bash
 pnpm build
 ```
 
-Vitest 及統一品質檢查指令將在後續里程碑加入。
+統一品質檢查指令將在後續里程碑加入。
 
 Production：
 

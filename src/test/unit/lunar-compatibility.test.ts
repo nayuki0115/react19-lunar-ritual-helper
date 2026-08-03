@@ -8,7 +8,7 @@ import {
   mapClockToShichen,
   mapToShichenLabel,
   parseBirthDateTz,
-} from "./lunar";
+} from "@/utils/lunar";
 
 describe("parseBirthDateTz", () => {
   it("parses a valid civil date at noon in Taipei", () => {
@@ -32,13 +32,13 @@ describe("parseBirthDateTz", () => {
   );
 });
 
-describe("lunar birth conversion baseline", () => {
-  it("converts Lunar New Year 2025 using the current library behavior", () => {
+describe("lunar birth conversion compatibility", () => {
+  it("converts Lunar New Year 2025 to traditional ritual wording", () => {
     const birthDate = parseBirthDateTz("2025-01-29");
 
     expect(getLunarYearGanzhi(birthDate)).toBe("乙巳");
     expect(getZodiac(birthDate)).toBe("蛇");
-    expect(formatLunarBirthday(birthDate)).toBe("一月一日");
+    expect(formatLunarBirthday(birthDate)).toBe("正月初一");
   });
 
   it("keeps Lunar New Year's Eve 2025 in the previous lunar year", () => {
@@ -46,7 +46,7 @@ describe("lunar birth conversion baseline", () => {
 
     expect(getLunarYearGanzhi(birthDate)).toBe("甲辰");
     expect(getZodiac(birthDate)).toBe("龍");
-    expect(formatLunarBirthday(birthDate)).toBe("十二月二十九日");
+    expect(formatLunarBirthday(birthDate)).toBe("十二月廿九");
   });
 });
 
@@ -85,7 +85,7 @@ describe("mapClockToShichen", () => {
   it.each(["", "0:00", "24:00", "12:60", "not-a-time"])(
     "returns an empty value for invalid time: %s",
     (clockTime) => {
-      expect(mapClockToShichen(clockTime)).toBe("");
+    expect(mapClockToShichen(clockTime)).toBeNull();
     },
   );
 });

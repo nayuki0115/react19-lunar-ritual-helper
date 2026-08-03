@@ -1,19 +1,20 @@
 # 單元測試規範
 
-本目錄放置跨模組共用的測試設定與輔助工具。各 production 模組的測試檔原則上與被測檔案放在一起，方便查找與維護。
+本目錄集中放置所有測試、共用設定與輔助工具。Production 目錄只保留應用程式程式碼。
 
 ## 目錄用途
 
 ```text
 src/test/
 ├─ helpers/       # 跨測試共用的輔助工具
+├─ unit/          # 純函式與模組單元測試
 ├─ setup.ts       # Vitest 全域測試清理
 └─ README.md      # 測試目錄與命名規範
 ```
 
 ## 檔案位置與命名
 
-- 測試檔與被測模組放在同一個目錄。
+- 所有單元測試集中在 `src/test/unit/`。
 - 測試檔使用 `*.test.ts` 命名。
 - 跨測試共用的工具放在 `src/test/helpers/`。
 - Vitest 全域設定與測試後清理集中於 `src/test/setup.ts`。
@@ -21,10 +22,10 @@ src/test/
 範例：
 
 ```text
-src/utils/lunar.ts
-src/utils/lunar.test.ts
-src/utils/zh.ts
-src/utils/zh.test.ts
+src/test/unit/
+├─ lunar-domain.test.ts
+├─ lunar-compatibility.test.ts
+└─ zh.test.ts
 ```
 
 ## 撰寫原則

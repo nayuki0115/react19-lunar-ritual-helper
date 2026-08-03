@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toTraditionalChinese } from "./zh";
+import { toTraditionalChinese } from "@/utils/zh";
 
 describe("toTraditionalChinese", () => {
   it("converts the simplified zodiac and yin-yang characters currently supported", () => {

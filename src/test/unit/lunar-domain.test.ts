@@ -167,6 +167,12 @@ describe("shichen", () => {
     expect(formatBirthTime({ kind: "branch", branch: "zi" })).toBe("子時");
     expect(formatBirthTime({ kind: "unknown" })).toBe("吉時");
   });
+
+  it("supports early, late and unspecified zi selections without an exact time", () => {
+    expect(formatBirthTime({ kind: "branch", branch: "zi" })).toBe("子時");
+    expect(formatBirthTime({ kind: "branch", branch: "zi", ziPeriod: "early" })).toBe("早子時");
+    expect(formatBirthTime({ kind: "branch", branch: "zi", ziPeriod: "late" })).toBe("夜子時");
+  });
 });
 
 describe("folk and civil today", () => {

@@ -4,9 +4,11 @@ export type ShichenCode =
   | "zi" | "chou" | "yin" | "mao" | "chen" | "si"
   | "wu" | "wei" | "shen" | "you" | "xu" | "hai";
 
+export type ZiPeriod = "unspecified" | "early" | "late";
+
 export type BirthTimeInput =
   | { kind: "unknown" }
-  | { kind: "branch"; branch: ShichenCode }
+  | { kind: "branch"; branch: ShichenCode; ziPeriod?: ZiPeriod }
   | { kind: "exact"; time: string };
 
 type BirthInputBase = { time: BirthTimeInput };

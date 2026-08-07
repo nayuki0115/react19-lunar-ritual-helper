@@ -1,563 +1,268 @@
-﻿import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import {
-  formatLunarMD,
-  formatLunarBirthday,
-  getEffectiveToday,
-  getGanzhiYear,
-  getLunarYear,
-  getLunarYearGanzhi,
-  getRocYearFromLunarYear,
-  getZodiac,
-  mapToShichenLabel,
-  parseBirthDateTz,
+  calculateSuiAge,
+  getEffectiveSolarDate,
+  resolveBirthProfile,
+  resolveTodayProfile,
+  type BirthInput,
 } from "../utils/lunar";
+import {
+  createDefaultFormState,
+  toBirthInput,
+  validateBirthForm,
+  type BirthMode,
+  type FormErrors,
+  type FormState,
+  type TimeBranchValue,
+  type TimeMode,
+} from "../utils/formSpec";
 
-type Gender = "male" | "female";
-type BirthTimeKind = "shichen" | "clock" | "unknown";
+const SHICHEN_OPTIONS: ReadonlyArray<{ value: TimeBranchValue; label: string }> = [
+  { value: "zi", label: "子時（不確定早晚）" },
+  { value: "earlyZi", label: "早子時（00:00–00:59）" },
+  { value: "lateZi", label: "夜子時（23:00–23:59）" },
+  { value: "chou", label: "丑時（01:00–02:59）" },
+  { value: "yin", label: "寅時（03:00–04:59）" },
+  { value: "mao", label: "卯時（05:00–06:59）" },
+  { value: "chen", label: "辰時（07:00–08:59）" },
+  { value: "si", label: "巳時（09:00–10:59）" },
+  { value: "wu", label: "午時（11:00–12:59）" },
+  { value: "wei", label: "未時（13:00–14:59）" },
+  { value: "shen", label: "申時（15:00–16:59）" },
+  { value: "you", label: "酉時（17:00–18:59）" },
+  { value: "xu", label: "戌時（19:00–20:59）" },
+  { value: "hai", label: "亥時（21:00–22:59）" },
+];
 
-type FormValue = {
-  gender: Gender | "";
-  birthDate: string; // YYYY-MM-DD
-  birthTimeKind: BirthTimeKind;
-  shichen: string;
-  clockTime: string; // HH:mm
-};
+const fieldClass =
+  "mt-2 block w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)";
 
-const DEFAULT_FORM_VALUE: FormValue = {
-  gender: "",
-  birthDate: "",
-  birthTimeKind: "unknown",
-  shichen: "",
-  clockTime: "",
-};
-
-const SHICHEN_OPTIONS = [
-  { value: "zi", label: "子（23:00–01:00）" },
-  { value: "chou", label: "丑（01:00–03:00）" },
-  { value: "yin", label: "寅（03:00–05:00）" },
-  { value: "mao", label: "卯（05:00–07:00）" },
-  { value: "chen", label: "辰（07:00–09:00）" },
-  { value: "si", label: "巳（09:00–11:00）" },
-  { value: "wu", label: "午（11:00–13:00）" },
-  { value: "wei", label: "未（13:00–15:00）" },
-  { value: "shen", label: "申（15:00–17:00）" },
-  { value: "you", label: "酉（17:00–19:00）" },
-  { value: "xu", label: "戌（19:00–21:00）" },
-  { value: "hai", label: "亥（21:00–23:00）" },
-] as const;
-
-const SHICHEN_SET = new Set<string>(SHICHEN_OPTIONS.map((x) => x.value));
-
-const isGender = (v: string | null): v is Gender => v === "male" || v === "female";
-
-const isBirthTimeKind = (v: string | null): v is BirthTimeKind =>
-  v === "shichen" || v === "clock" || v === "unknown";
-
-const isDate = (v: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(v);
-const isTime = (v: string): boolean => /^\d{2}:\d{2}$/.test(v);
-
-const parseSearchParams = (params: URLSearchParams): FormValue => {
-  const genderRaw = params.get("gender");
-  const birthDateRaw = params.get("birthDate") ?? "";
-  const birthTimeKindRaw = params.get("birthTimeKind");
-  const shichenRaw = params.get("shichen") ?? "";
-  const clockTimeRaw = params.get("clockTime") ?? "";
-
-  const gender = isGender(genderRaw) ? genderRaw : "";
-  const birthDate = isDate(birthDateRaw) ? birthDateRaw : "";
-  const birthTimeKind = isBirthTimeKind(birthTimeKindRaw) ? birthTimeKindRaw : "unknown";
-
-  if (birthTimeKind === "shichen") {
-    return {
-      gender,
-      birthDate,
-      birthTimeKind,
-      shichen: SHICHEN_SET.has(shichenRaw) ? shichenRaw : "",
-      clockTime: "",
-    };
-  }
-
-  if (birthTimeKind === "clock") {
-    return {
-      gender,
-      birthDate,
-      birthTimeKind,
-      shichen: "",
-      clockTime: isTime(clockTimeRaw) ? clockTimeRaw : "",
-    };
-  }
-
-  return {
-    gender,
-    birthDate,
-    birthTimeKind: "unknown",
-    shichen: "",
-    clockTime: "",
-  };
-};
-
-const serializeSearchParams = (value: FormValue): URLSearchParams => {
-  const p = new URLSearchParams();
-
-  if (value.gender) p.set("gender", value.gender);
-  if (isDate(value.birthDate)) p.set("birthDate", value.birthDate);
-  p.set("birthTimeKind", value.birthTimeKind);
-
-  if (value.birthTimeKind === "shichen" && SHICHEN_SET.has(value.shichen)) {
-    p.set("shichen", value.shichen);
-  }
-
-  if (value.birthTimeKind === "clock" && isTime(value.clockTime)) {
-    p.set("clockTime", value.clockTime);
-  }
-
-  return p;
-};
+const ErrorMessage = ({ id, children }: { id: string; children?: string }) =>
+  children ? <p id={id} className="mt-2 text-sm text-(--color-state-error)" role="alert">{children}</p> : null;
 
 const Home = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [formState, setFormState] = useState<FormState>(createDefaultFormState);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [submittedInput, setSubmittedInput] = useState<BirthInput | null>(null);
+  const [submittedGender, setSubmittedGender] = useState<FormState["gender"]>("");
+  const resultSectionRef = useRef<HTMLDivElement>(null);
 
-  const committedValue = useMemo(() => parseSearchParams(searchParams), [searchParams]);
-  const [formValue, setFormValue] = useState<FormValue>(committedValue);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const loadingTimerRef = useRef<number | null>(null);
-  const resultSectionRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setFormValue(committedValue);
-  }, [committedValue]);
-
-  useEffect(() => {
-    return () => {
-      if (loadingTimerRef.current !== null) {
-        window.clearTimeout(loadingTimerRef.current);
-      }
-    };
-  }, []);
-
-  const canSubmit = Boolean(formValue.gender && formValue.birthDate);
-
-  const effectiveToday = useMemo(() => getEffectiveToday(23, "Asia/Taipei"), []);
-  const todayLunarYear = useMemo(() => getLunarYear(effectiveToday), [effectiveToday]);
-
-  const todayLunarMd = useMemo(() => formatLunarMD(effectiveToday), [effectiveToday]);
-  const todayGanzhiYear = useMemo(() => getGanzhiYear(effectiveToday), [effectiveToday]);
-
-  const birthDateObject = useMemo(() => {
-    if (!committedValue.birthDate) return null;
-
-    try {
-      return parseBirthDateTz(committedValue.birthDate);
-    } catch {
-      return null;
-    }
-  }, [committedValue.birthDate]);
-
-  const lunarYearDisplay = useMemo(() => {
-    if (!birthDateObject) return "--";
-    return `${getLunarYearGanzhi(birthDateObject)}年（${getRocYearFromLunarYear(birthDateObject)}年）`;
-  }, [birthDateObject]);
-
-  const lunarBirthdayDisplay = useMemo(() => {
-    if (!birthDateObject) return "--";
-    return formatLunarBirthday(birthDateObject);
-  }, [birthDateObject]);
-
-  const shichenDisplay = useMemo(
-    () =>
-      mapToShichenLabel(
-        committedValue.birthTimeKind,
-        committedValue.shichen || undefined,
-        committedValue.clockTime || undefined,
-      ),
-    [committedValue.birthTimeKind, committedValue.shichen, committedValue.clockTime],
+  const now = useMemo(() => new Date(), []);
+  const civilToday = useMemo(() => getEffectiveSolarDate(now, "civil"), [now]);
+  const maxSolarDate = `${civilToday.year}-${String(civilToday.month).padStart(2, "0")}-${String(civilToday.day).padStart(2, "0")}`;
+  const today = useMemo(() => resolveTodayProfile(now, "folk"), [now]);
+  const result = useMemo(
+    () => submittedInput ? resolveBirthProfile(submittedInput) : null,
+    [submittedInput],
   );
+  const suiAge = result ? calculateSuiAge(today.lunarDate.year, result.lunarDate.year) : null;
 
-  const zodiacDisplay = useMemo(() => {
-    if (!birthDateObject) return "--";
-    return getZodiac(birthDateObject);
-  }, [birthDateObject]);
+  const updateForm = (updater: (previous: FormState) => FormState) => {
+    setFormState((previous) => {
+      const next = updater(previous);
+      if (hasSubmitted) setErrors(validateBirthForm(next, now));
+      return next;
+    });
+  };
 
-  const birthLunarYear = useMemo(() => {
-    if (!birthDateObject) return null;
-    return getLunarYear(birthDateObject);
-  }, [birthDateObject]);
+  const updateMode = (birthMode: BirthMode) =>
+    updateForm((previous) => ({ ...previous, birthMode }));
 
-  const handRecommendation = useMemo(() => {
-    if (committedValue.gender === "male") return "左手";
-    if (committedValue.gender === "female") return "右手";
-    return "--";
-  }, [committedValue.gender]);
+  const updateTimeMode = (timeMode: TimeMode) =>
+    updateForm((previous) => ({
+      ...previous,
+      [previous.birthMode]: {
+        ...previous[previous.birthMode],
+        timeMode,
+      },
+    }));
 
-  const suiAge = useMemo(() => {
-    if (birthLunarYear === null) return null;
-    return todayLunarYear - birthLunarYear + 1;
-  }, [todayLunarYear, birthLunarYear]);
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nextErrors = validateBirthForm(formState, now);
+    setHasSubmitted(true);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
-  const suiAgeSummary = useMemo(() => {
-    if (suiAge === null || birthLunarYear === null) {
-      return "虛歲 = 農曆今年 - 農曆出生年 + 1（需先填生日）";
-    }
-    return `虛歲 = ${todayLunarYear} - ${birthLunarYear} + 1 = ${suiAge}`;
-  }, [suiAge, todayLunarYear, birthLunarYear]);
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!canSubmit) return;
-
-    setSearchParams(serializeSearchParams(formValue)); // push
-    setIsLoading(true);
-
-    if (loadingTimerRef.current !== null) {
-      window.clearTimeout(loadingTimerRef.current);
-    }
-
-    loadingTimerRef.current = window.setTimeout(() => {
-      setIsLoading(false);
-
-      if (window.matchMedia("(max-width: 767px)").matches) {
-        const headerEl =
-          document.querySelector<HTMLElement>("#app-header") ??
-          document.querySelector<HTMLElement>('[data-role="app-header"]') ??
-          document.querySelector<HTMLElement>("header");
-
-        const headerHeight = headerEl?.offsetHeight ?? 72;
-        const resultTop =
-          (resultSectionRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY;
-        const top = Math.max(0, resultTop - headerHeight);
-
-        window.scrollTo({ top, behavior: "smooth" });
+    setSubmittedInput(toBirthInput(formState));
+    setSubmittedGender(formState.gender);
+    requestAnimationFrame(() => {
+      if (window.matchMedia("(max-width: 1023px)").matches) {
+        resultSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-    }, 900);
+    });
   };
 
   const handleReset = () => {
-    if (loadingTimerRef.current !== null) {
-      window.clearTimeout(loadingTimerRef.current);
-      loadingTimerRef.current = null;
-    }
-
-    setIsLoading(false);
-    setFormValue(DEFAULT_FORM_VALUE);
-    setSearchParams({}, { replace: true });
+    setFormState(createDefaultFormState());
+    setErrors({});
+    setHasSubmitted(false);
+    setSubmittedInput(null);
+    setSubmittedGender("");
   };
+
+  const activeDraft = formState[formState.birthMode];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      {/* Hero */}
       <section className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-(--color-text-primary)">
-          疏文填寫助手
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-(--color-text-primary) md:text-3xl">疏文填寫助手</h1>
         <p className="mt-2 max-w-3xl text-(--color-text-secondary)">
-          輸入生日與性別，快速整理疏文所需資料（農曆生日、生肖、虛歲、生辰）。
+          輸入出生資料，系統會整理農曆生日、生肖、虛歲與生辰。
         </p>
       </section>
 
-      {/* Main Content */}
       <section className="grid gap-6 lg:grid-cols-12">
-        {/* Input */}
         <div className="lg:col-span-5">
-          <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 md:p-6 shadow-sm">
+          <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6">
             <h2 className="text-lg font-semibold text-(--color-text-primary)">輸入資料</h2>
-            <p className="mt-1 text-sm text-(--color-text-secondary)">請輸入基本資料，系統將自動換算並產生結果。</p>
+            <p className="mt-1 text-sm text-(--color-text-secondary)">標示必填的欄位完成後即可產生疏文資料。</p>
 
-            <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
-              <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                <div className="px-1 text-xs text-(--color-text-muted)">性別（必填）</div>
-                <div className="mt-2 flex gap-4">
-                  <label className="inline-flex items-center gap-2 text-(--color-text-primary)">
-                    <input
-                      type="radio"
-                      name="gender"
-                      value="male"
-                      checked={formValue.gender === "male"}
-                      onChange={() => setFormValue((prev) => ({ ...prev, gender: "male" }))}
-                      className="h-4 w-4 border-(--color-border) text-(--color-accent) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)"
-                    />
-                    男
-                  </label>
-                  <label className="inline-flex items-center gap-2 text-(--color-text-primary)">
-                    <input
-                      type="radio"
-                      name="gender"
-                      value="female"
-                      checked={formValue.gender === "female"}
-                      onChange={() => setFormValue((prev) => ({ ...prev, gender: "female" }))}
-                      className="h-4 w-4 border-(--color-border) text-(--color-accent) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)"
-                    />
-                    女
-                  </label>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                <div className="px-1 text-xs text-(--color-text-muted)">生日（必填）</div>
-                <label htmlFor="birthDate" className="sr-only">
-                  國曆生日（必填）
-                </label>
-                <input
-                  id="birthDate"
-                  type="date"
-                  value={formValue.birthDate}
-                  onChange={(e) => setFormValue((prev) => ({ ...prev, birthDate: e.target.value }))}
-                  className="mt-2 block w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)"
-                />
-                <div className="mt-2 text-xs text-(--color-text-muted)">
-                  ※ 請輸入國曆生日，系統將自動換算農曆並判斷閏月。
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                <div className="px-1 text-xs text-(--color-text-muted)">出生時間（選填）</div>
-
-                <div className="mt-2 grid gap-2">
-                  <label className="inline-flex items-center gap-2 text-(--color-text-primary)">
-                    <input
-                      type="radio"
-                      name="birthTimeKind"
-                      value="shichen"
-                      checked={formValue.birthTimeKind === "shichen"}
-                      onChange={() =>
-                        setFormValue((prev) => ({
-                          ...prev,
-                          birthTimeKind: "shichen",
-                          clockTime: "",
-                        }))
-                      }
-                      className="h-4 w-4 border-(--color-border) text-(--color-accent) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)"
-                    />
-                    知道時辰
-                  </label>
-
-                  <label className="inline-flex items-center gap-2 text-(--color-text-primary)">
-                    <input
-                      type="radio"
-                      name="birthTimeKind"
-                      value="clock"
-                      checked={formValue.birthTimeKind === "clock"}
-                      onChange={() =>
-                        setFormValue((prev) => ({
-                          ...prev,
-                          birthTimeKind: "clock",
-                          shichen: "",
-                        }))
-                      }
-                      className="h-4 w-4 border-(--color-border) text-(--color-accent) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)"
-                    />
-                    知道幾點幾分
-                  </label>
-
-                  <label className="inline-flex items-center gap-2 text-(--color-text-primary)">
-                    <input
-                      type="radio"
-                      name="birthTimeKind"
-                      value="unknown"
-                      checked={formValue.birthTimeKind === "unknown"}
-                      onChange={() =>
-                        setFormValue((prev) => ({
-                          ...prev,
-                          birthTimeKind: "unknown",
-                          shichen: "",
-                          clockTime: "",
-                        }))
-                      }
-                      className="h-4 w-4 border-(--color-border) text-(--color-accent) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)"
-                    />
-                    不知道
-                  </label>
-                </div>
-
-                {formValue.birthTimeKind === "shichen" && (
-                  <div className="mt-3">
-                    <label htmlFor="shichen" className="text-xs text-(--color-text-muted)">
-                      時辰
+            <form className="mt-5 space-y-5" onSubmit={handleSubmit} noValidate>
+              <fieldset className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
+                <legend className="px-1 text-sm font-medium text-(--color-text-primary)">出生日期輸入方式</legend>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(["solar", "lunar"] as const).map((mode) => (
+                    <label key={mode} className={`cursor-pointer rounded-lg border px-3 py-2 text-center text-sm ${formState.birthMode === mode ? "border-(--color-accent) bg-(--color-surface) font-semibold text-(--color-accent-text)" : "border-(--color-border) text-(--color-text-secondary)"}`}>
+                      <input type="radio" name="birthMode" value={mode} className="sr-only" checked={formState.birthMode === mode} onChange={() => updateMode(mode)} />
+                      {mode === "solar" ? "國曆自動換算" : "已知農曆日期"}
                     </label>
-                    <select
-                      id="shichen"
-                      value={formValue.shichen}
-                      onChange={(e) => setFormValue((prev) => ({ ...prev, shichen: e.target.value }))}
-                      className="mt-2 block w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)"
-                    >
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-(--color-text-muted)">切換模式時，兩邊已輸入的草稿都會保留。</p>
+              </fieldset>
+
+              <fieldset className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
+                <legend className="px-1 text-sm font-medium text-(--color-text-primary)">性別（必填）</legend>
+                <div className="mt-2 flex gap-6">
+                  {(["male", "female"] as const).map((gender) => (
+                    <label key={gender} className="inline-flex items-center gap-2 text-(--color-text-primary)">
+                      <input type="radio" name="gender" value={gender} checked={formState.gender === gender} onChange={() => updateForm((previous) => ({ ...previous, gender }))} className="h-4 w-4 accent-(--color-accent)" />
+                      {gender === "male" ? "男" : "女"}
+                    </label>
+                  ))}
+                </div>
+                <ErrorMessage id="gender-error">{errors.gender}</ErrorMessage>
+              </fieldset>
+
+              <section className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3" aria-labelledby="birthday-heading">
+                <h3 id="birthday-heading" className="text-sm font-medium text-(--color-text-primary)">出生日期（必填）</h3>
+                {formState.birthMode === "solar" ? (
+                  <>
+                    <label htmlFor="solar-date" className="mt-3 block text-xs text-(--color-text-muted)">國曆出生日期</label>
+                    <input id="solar-date" type="date" max={maxSolarDate} value={formState.solar.date} aria-invalid={Boolean(errors.solarDate)} aria-describedby={errors.solarDate ? "solar-date-error" : "solar-date-hint"} onChange={(event) => updateForm((previous) => ({ ...previous, solar: { ...previous.solar, date: event.target.value } }))} className={fieldClass} />
+                    <p id="solar-date-hint" className="mt-2 text-xs text-(--color-text-muted)">系統會自動換算農曆日期，並保留閏月資訊。</p>
+                    <ErrorMessage id="solar-date-error">{errors.solarDate}</ErrorMessage>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <label className="text-xs text-(--color-text-muted)">農曆出生年（西元年份）
+                        <input inputMode="numeric" placeholder="例：1992" value={formState.lunar.year} aria-invalid={Boolean(errors.lunarYear)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, year: event.target.value } }))} className={fieldClass} />
+                      </label>
+                      <label className="text-xs text-(--color-text-muted)">月份
+                        <input type="number" min="1" max="12" placeholder="1–12" value={formState.lunar.month} aria-invalid={Boolean(errors.lunarMonth)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, month: event.target.value } }))} className={fieldClass} />
+                      </label>
+                      <label className="text-xs text-(--color-text-muted)">日期
+                        <input type="number" min="1" max="30" placeholder="1–30" value={formState.lunar.day} aria-invalid={Boolean(errors.lunarDay)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, day: event.target.value } }))} className={fieldClass} />
+                      </label>
+                    </div>
+                    <ErrorMessage id="lunar-year-error">{errors.lunarYear}</ErrorMessage>
+                    <ErrorMessage id="lunar-month-error">{errors.lunarMonth}</ErrorMessage>
+                    <ErrorMessage id="lunar-day-error">{errors.lunarDay}</ErrorMessage>
+                    <p className="mt-3 text-xs text-(--color-text-muted)">請填西元年份，系統會自動換算干支與生肖。</p>
+                    <p className="mt-3 text-xs leading-5 text-(--color-text-muted)">目前僅驗證基本格式，不驗證農曆日期是否實際存在；請確認輸入的農曆生日正確。閏月生日暫不支援。</p>
+                  </>
+                )}
+              </section>
+
+              <fieldset className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
+                <legend className="px-1 text-sm font-medium text-(--color-text-primary)">出生時間（必填）</legend>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  {(["unknown", "branch", "exact"] as const).map((mode) => (
+                    <label key={mode} className="inline-flex items-center gap-2 text-sm text-(--color-text-primary)">
+                      <input type="radio" name="timeMode" value={mode} checked={activeDraft.timeMode === mode} onChange={() => updateTimeMode(mode)} className="h-4 w-4 accent-(--color-accent)" />
+                      {mode === "unknown" ? "不知道" : mode === "branch" ? "知道時辰" : "精確時間"}
+                    </label>
+                  ))}
+                </div>
+
+                {activeDraft.timeMode === "branch" && (
+                  <div className="mt-3">
+                    <label htmlFor="time-branch" className="text-xs text-(--color-text-muted)">出生時辰</label>
+                    <select id="time-branch" value={activeDraft.timeBranch} aria-invalid={Boolean(errors.time)} onChange={(event) => updateForm((previous) => ({ ...previous, [previous.birthMode]: { ...previous[previous.birthMode], timeBranch: event.target.value as TimeBranchValue } }))} className={fieldClass}>
                       <option value="">請選擇時辰</option>
-                      {SHICHEN_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
+                      {SHICHEN_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </select>
                   </div>
                 )}
 
-                {formValue.birthTimeKind === "clock" && (
+                {activeDraft.timeMode === "exact" && (
                   <div className="mt-3">
-                    <label htmlFor="clockTime" className="text-xs text-(--color-text-muted)">
-                      時間
-                    </label>
-                    <input
-                      id="clockTime"
-                      type="time"
-                      value={formValue.clockTime}
-                      onChange={(e) => setFormValue((prev) => ({ ...prev, clockTime: e.target.value }))}
-                      className="mt-2 block w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)"
-                    />
+                    <label htmlFor="time-exact" className="text-xs text-(--color-text-muted)">出生時間</label>
+                    <input id="time-exact" type="time" value={activeDraft.timeExact} aria-invalid={Boolean(errors.time)} onChange={(event) => updateForm((previous) => ({ ...previous, [previous.birthMode]: { ...previous[previous.birthMode], timeExact: event.target.value } }))} className={fieldClass} />
                   </div>
                 )}
+                {activeDraft.timeMode === "unknown" && <p className="mt-3 text-xs text-(--color-text-muted)">不知道也可以產生結果，生辰會顯示「吉時」。</p>}
+                <ErrorMessage id="time-error">{errors.time}</ErrorMessage>
+              </fieldset>
 
-                <div className="mt-2 text-xs text-(--color-text-muted)">
-                  不知道出生時間也沒關係：可改用「時辰」或選擇「未知」。
-                </div>
-              </div>
-
-              <div className="mt-2 grid grid-cols-2 gap-3">
-                <button
-                  type="submit"
-                  disabled={!canSubmit}
-                  className="w-full rounded-xl bg-(--color-accent) py-2.5 text-white hover:bg-(--color-accent-hover) transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg) disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  產生結果
-                </button>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="w-full rounded-xl border border-(--color-border) bg-(--color-surface-muted) py-2.5 text-(--color-text-primary) hover:bg-(--color-surface) transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)"
-                >
-                  重填
-                </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button type="submit" className="w-full rounded-xl bg-(--color-accent) py-2.5 font-medium text-white transition hover:bg-(--color-accent-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2">產生疏文資料</button>
+                <button type="button" onClick={handleReset} className="w-full rounded-xl border border-(--color-border) bg-(--color-surface-muted) py-2.5 text-(--color-text-primary) transition hover:bg-(--color-surface)">清除重填</button>
               </div>
             </form>
           </div>
         </div>
 
-        {/* Result */}
-        <div ref={resultSectionRef} className="lg:col-span-7">
+        <div ref={resultSectionRef} className="scroll-mt-24 lg:col-span-7">
           <div className="grid gap-4">
-            {/* Card 1 */}
-            <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 md:p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="font-semibold text-(--color-text-primary)">歲次、天運（今天農曆）</h3>
-                <span className="rounded-full bg-(--color-bg-muted) px-2 py-1 text-xs text-(--color-text-secondary)">
-                  不需輸入
-                </span>
-              </div>
-
+            <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6">
+              <h2 className="font-semibold text-(--color-text-primary)">今日疏文日期</h2>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                  <div className="text-xs text-(--color-text-muted)">歲次</div>
-                  <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">{todayGanzhiYear}</div>
-                </div>
-                <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                  <div className="text-xs text-(--color-text-muted)">今天農曆</div>
-                  <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">{todayLunarMd}</div>
-                </div>
+                <ResultItem label="天運／歲次" value={`${today.ganzhiYear}年`} />
+                <ResultItem label="今天農曆月日" value={today.lunarDateText} />
               </div>
-
-              <div className="mt-3 text-sm text-(--color-text-secondary)">
-                天運：{todayGanzhiYear}（Asia/Taipei，23:00 日界線）
-              </div>
+              <p className="mt-3 text-sm text-(--color-text-secondary)">
+                疏文寫「天運」或「歲次」，都請填上方的干支年。
+              </p>
             </div>
 
-            {/* Card 2 */}
-            <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 md:p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="font-semibold text-(--color-text-primary)">生辰、命宮、本命（農曆生日）</h3>
-                <span className="rounded-full bg-(--color-bg-muted) px-2 py-1 text-xs text-(--color-text-secondary)">
-                  需生日
-                </span>
+            {result ? (
+              <>
+                <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6" aria-live="polite">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="font-semibold text-(--color-text-primary)">疏文資料</h2>
+                    {result.userProvidedLunarDate && <span className="rounded-full bg-(--color-bg-muted) px-2 py-1 text-xs text-(--color-text-secondary)">使用者提供農曆資料</span>}
+                  </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <ResultItem label="生辰／命宮／本命（農曆出生資料）" value={result.birthText} />
+                    <ResultItem label="生肖（參考資訊）" value={`屬${result.zodiac}`} />
+                    <ResultItem label="歲數" value={`${suiAge} 歲`} />
+                    <ResultItem label="手印" value={submittedGender === "male" ? "左手印" : "右手印"} />
+                  </div>
+                  <p className="mt-3 text-sm text-(--color-text-secondary)">上方內容由出生干支年、農曆月日與時辰組成。疏文寫「生辰」、「命宮」或「本命」，都請填這項農曆出生資料。</p>
+                  {result.userProvidedLunarDate && <p className="mt-3 text-xs text-(--color-text-muted)">此出生農曆資料由使用者自行提供。</p>}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-(--color-border) bg-(--color-surface-muted) p-8 text-center text-(--color-text-secondary)">
+                完成左側資料後，按下「產生疏文資料」即可查看結果。
               </div>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                  <div className="text-xs text-(--color-text-muted)">農曆年</div>
-                  <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">{lunarYearDisplay}</div>
-                </div>
-                <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                  <div className="text-xs text-(--color-text-muted)">農曆生日</div>
-                  <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">{lunarBirthdayDisplay}</div>
-                </div>
-              </div>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                  <div className="text-xs text-(--color-text-muted)">生辰（時辰）</div>
-                  <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">{shichenDisplay}</div>
-                </div>
-                <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                  <div className="text-xs text-(--color-text-muted)">生肖</div>
-                  <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">{zodiacDisplay}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3 */}
-            <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 md:p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="font-semibold text-(--color-text-primary)">歲數（虛歲）</h3>
-                <span className="rounded-full bg-(--color-bg-muted) px-2 py-1 text-xs text-(--color-text-secondary)">
-                  需生日
-                </span>
-              </div>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                  <div className="text-xs text-(--color-text-muted)">虛歲</div>
-                  <div className="mt-1 text-2xl font-bold text-(--color-text-primary)">{suiAge ?? "--"}</div>
-                </div>
-                <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                  <div className="text-xs text-(--color-text-muted)">算法摘要</div>
-                  <div className="mt-1 text-sm text-(--color-text-primary)">{suiAgeSummary}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4 */}
-            <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 md:p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="font-semibold text-(--color-text-primary)">手印提醒</h3>
-                <span className="rounded-full bg-(--color-bg-muted) px-2 py-1 text-xs text-(--color-text-secondary)">
-                  需性別
-                </span>
-              </div>
-
-              <div className="mt-3 rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-4">
-                <div className="text-sm text-(--color-text-primary)">
-                  蓋手印規則：<span className="font-semibold">男左女右</span>
-                </div>
-                <div className="mt-2 text-lg font-semibold text-(--color-text-primary)">
-                  建議使用：{handRecommendation}
-                </div>
-                <div className="mt-1 text-xs text-(--color-text-muted)">※ 如果疏文上有指定，請以疏文為主</div>
-              </div>
-            </div>
-
+            )}
           </div>
         </div>
       </section>
-
-      {/* FAQ Teaser（可先留著） */}
-      {/* <section className="mt-12">
-        <h2 className="text-xl font-semibold text-(--color-text-primary)">常見問題</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 text-(--color-text-primary)">
-            不知道出生時間怎麼辦？
-          </div>
-          <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4 text-(--color-text-primary)">
-            虛歲怎麼算？
-          </div>
-        </div>
-      </section> */}
-
-      {isLoading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-(--color-bg)/80 backdrop-blur-sm">
-          <div className="rounded-xl border border-(--color-border) bg-(--color-surface) px-5 py-3 text-sm font-medium text-(--color-text-primary)">
-            載入中...
-          </div>
-        </div>
-      )}
     </div>
   );
 };
+
+const ResultItem = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
+    <div className="text-xs text-(--color-text-muted)">{label}</div>
+    <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">{value}</div>
+  </div>
+);
 
 export default Home;

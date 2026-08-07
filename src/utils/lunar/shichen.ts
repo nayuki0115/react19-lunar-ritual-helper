@@ -25,7 +25,11 @@ export const mapClockToShichen = (value: string): ShichenCode | null => {
 
 export const formatBirthTime = (time: BirthTimeInput): string => {
   if (time.kind === "unknown") return "吉時";
-  if (time.kind === "branch") return `${SHICHEN_LABELS[time.branch]}時`;
+  if (time.kind === "branch") {
+    if (time.branch === "zi" && time.ziPeriod === "early") return "早子時";
+    if (time.branch === "zi" && time.ziPeriod === "late") return "夜子時";
+    return `${SHICHEN_LABELS[time.branch]}時`;
+  }
   const clock = parseClock(time.time);
   if (!clock) throw new Error("Invalid clock time. Expected HH:mm.");
   if (clock.hour === 23) return "夜子時";

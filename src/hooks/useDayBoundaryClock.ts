@@ -8,6 +8,10 @@ export const useDayBoundaryClock = () => {
   const [mode, setMode] = useState<DayMode>("folk");
   const [now, setNow] = useState(() => new Date());
   const refresh = useCallback(() => setNow(new Date()), []);
+  const changeMode = useCallback((nextMode: DayMode) => {
+    setMode(nextMode);
+    refresh();
+  }, [refresh]);
 
   useEffect(() => {
     const timer = window.setTimeout(
@@ -31,5 +35,5 @@ export const useDayBoundaryClock = () => {
     };
   }, [refresh]);
 
-  return { mode, setMode, now };
+  return { mode, setMode: changeMode, now };
 };

@@ -1,5 +1,5 @@
 import { Lunar, Solar } from "lunar-javascript";
-import { toTraditionalChinese } from "../zh";
+import { toTraditionalChinese } from "@/utils/zh";
 import { assertIntegerInRange, formatTraditionalLunarDate } from "./formatting";
 import { formatBirthTime } from "./shichen";
 import type {

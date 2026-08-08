@@ -6,7 +6,7 @@ import {
 } from "./calendar";
 import { formatBirthTime } from "./shichen";
 import type { BirthTimeInput, CalendarDate, ShichenCode } from "./types";
-import { toTraditionalChinese } from "../zh";
+import { toTraditionalChinese } from "@/utils/zh";
 
 export type { ShichenCode } from "./types";
 export type BirthTimeKind = "shichen" | "clock" | "unknown";

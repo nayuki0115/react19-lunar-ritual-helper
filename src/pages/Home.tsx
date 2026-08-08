@@ -1,11 +1,6 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
-import {
-  calculateSuiAge,
-  getEffectiveSolarDate,
-  resolveBirthProfile,
-  resolveTodayProfile,
-  type BirthInput,
-} from "../utils/lunar";
+import { getEffectiveSolarDate, type BirthInput } from "@/utils/lunar";
+import RitualResults from "@/components/RitualResults";
 import {
   createDefaultFormState,
   toBirthInput,
@@ -15,7 +10,7 @@ import {
   type FormState,
   type TimeBranchValue,
   type TimeMode,
-} from "../utils/formSpec";
+} from "@/utils/formSpec";
 
 const SHICHEN_OPTIONS: ReadonlyArray<{ value: TimeBranchValue; label: string }> = [
   { value: "zi", label: "子時（不確定早晚）" },
@@ -51,13 +46,6 @@ const Home = () => {
   const now = useMemo(() => new Date(), []);
   const civilToday = useMemo(() => getEffectiveSolarDate(now, "civil"), [now]);
   const maxSolarDate = `${civilToday.year}-${String(civilToday.month).padStart(2, "0")}-${String(civilToday.day).padStart(2, "0")}`;
-  const today = useMemo(() => resolveTodayProfile(now, "folk"), [now]);
-  const result = useMemo(
-    () => submittedInput ? resolveBirthProfile(submittedInput) : null,
-    [submittedInput],
-  );
-  const suiAge = result ? calculateSuiAge(today.lunarDate.year, result.lunarDate.year) : null;
-
   const updateForm = (updater: (previous: FormState) => FormState) => {
     setFormState((previous) => {
       const next = updater(previous);
@@ -89,7 +77,11 @@ const Home = () => {
     setSubmittedGender(formState.gender);
     requestAnimationFrame(() => {
       if (window.matchMedia("(max-width: 1023px)").matches) {
-        resultSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        resultSectionRef.current?.scrollIntoView({
+          behavior: reduceMotion ? "auto" : "smooth",
+          block: "start",
+        });
       }
     });
   };
@@ -217,52 +209,11 @@ const Home = () => {
         </div>
 
         <div ref={resultSectionRef} className="scroll-mt-24 lg:col-span-7">
-          <div className="grid gap-4">
-            <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6">
-              <h2 className="font-semibold text-(--color-text-primary)">今日疏文日期</h2>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <ResultItem label="天運／歲次" value={`${today.ganzhiYear}年`} />
-                <ResultItem label="今天農曆月日" value={today.lunarDateText} />
-              </div>
-              <p className="mt-3 text-sm text-(--color-text-secondary)">
-                疏文寫「天運」或「歲次」，都請填上方的干支年。
-              </p>
-            </div>
-
-            {result ? (
-              <>
-                <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6" aria-live="polite">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="font-semibold text-(--color-text-primary)">疏文資料</h2>
-                    {result.userProvidedLunarDate && <span className="rounded-full bg-(--color-bg-muted) px-2 py-1 text-xs text-(--color-text-secondary)">使用者提供農曆資料</span>}
-                  </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <ResultItem label="生辰／命宮／本命（農曆出生資料）" value={result.birthText} />
-                    <ResultItem label="生肖（參考資訊）" value={`屬${result.zodiac}`} />
-                    <ResultItem label="歲數" value={`${suiAge} 歲`} />
-                    <ResultItem label="手印" value={submittedGender === "male" ? "左手印" : "右手印"} />
-                  </div>
-                  <p className="mt-3 text-sm text-(--color-text-secondary)">上方內容由出生干支年、農曆月日與時辰組成。疏文寫「生辰」、「命宮」或「本命」，都請填這項農曆出生資料。</p>
-                  {result.userProvidedLunarDate && <p className="mt-3 text-xs text-(--color-text-muted)">此出生農曆資料由使用者自行提供。</p>}
-                </div>
-              </>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-(--color-border) bg-(--color-surface-muted) p-8 text-center text-(--color-text-secondary)">
-                完成左側資料後，按下「產生疏文資料」即可查看結果。
-              </div>
-            )}
-          </div>
+          <RitualResults input={submittedInput} gender={submittedGender} now={now} />
         </div>
       </section>
     </div>
   );
 };
-
-const ResultItem = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-    <div className="text-xs text-(--color-text-muted)">{label}</div>
-    <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">{value}</div>
-  </div>
-);
 
 export default Home;

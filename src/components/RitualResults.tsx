@@ -1,0 +1,105 @@
+import { createRitualResultViewModel } from "@/utils/ritualResults";
+import { resolveTodayProfile, type BirthInput } from "@/utils/lunar";
+import type { Gender } from "@/utils/formSpec";
+
+type Props = {
+  input: BirthInput | null;
+  gender: Gender | "";
+  now: Date;
+};
+
+const ResultItem = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
+    <div className="text-xs text-(--color-text-muted)">{label}</div>
+    <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">{value}</div>
+  </div>
+);
+
+const DetailItem = ({ label, value }: { label: string; value: string }) => (
+  <div>
+    <dt className="text-xs font-medium text-(--color-text-muted)">{label}</dt>
+    <dd className="mt-1 text-sm text-(--color-text-primary)">{value}</dd>
+  </div>
+);
+
+const RitualResults = ({ input, gender, now }: Props) => {
+  const today = resolveTodayProfile(now, "folk");
+  const result = input && gender ? createRitualResultViewModel(input, gender, now) : null;
+
+  return (
+    <div className="grid gap-4">
+      <section className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6">
+        <h2 className="font-semibold text-(--color-text-primary)">今日疏文與流年資訊</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <ResultItem label="天運／歲次（疏文填寫內容）" value={`${today.ganzhiYear}年 ${today.lunarDateText}`} />
+          <ResultItem label="今日流年生肖" value={`屬${today.zodiac}`} />
+        </div>
+        <p className="mt-3 text-xs leading-5 text-(--color-text-muted)">
+          * 「歲次」是指當年的干支年；實際疏文中的「天運」或「歲次」欄位，常需填今年干支年及今天農曆月日。
+        </p>
+      </section>
+
+      {result ? (
+        <>
+          <section className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6" aria-live="polite">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-semibold text-(--color-text-primary)">疏文資料</h2>
+              {result.source === "lunar" && (
+                <span className="rounded-full bg-(--color-bg-muted) px-2 py-1 text-xs text-(--color-text-secondary)">
+                  使用者直接提供農曆資料
+                </span>
+              )}
+            </div>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <ResultItem label="生辰／命宮／本命（農曆出生資料）" value={result.birthText} />
+              <ResultItem label="歲數" value={`${result.suiAge} 歲`} />
+              <ResultItem label="生肖（參考資訊）" value={result.birthZodiac} />
+              <ResultItem label="手印" value={result.handprint} />
+            </div>
+
+            <div className="mt-3 text-xs leading-5 text-(--color-text-muted)">
+              <p>* 上方出生資料由干支年、農曆月日與時辰組成。疏文寫「生辰」、「命宮」或「本命」，都請填這項資料。</p>
+              <p className="mt-1">* 手印依一般「男左女右」整理；若疏文或使用單位另有指定，請以其規定為準。</p>
+            </div>
+
+            {result.source === "lunar" && (
+              <div className="mt-4 rounded-xl border border-(--color-border) bg-(--color-bg-muted) p-3 text-sm text-(--color-text-secondary)">
+                此出生農曆資料由使用者自行提供，系統僅檢查基本格式，不驗證其與實際農曆日期是否一致。
+              </div>
+            )}
+          </section>
+
+          <details className="rounded-2xl border border-(--color-border) bg-(--color-surface) shadow-sm">
+            <summary className="cursor-pointer px-4 py-4 font-medium text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-accent-text) md:px-6">
+              詳細資訊與判定說明
+            </summary>
+            <div className="border-t border-(--color-border) px-4 py-4 md:px-6">
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <DetailItem label="出生資料來源" value={result.sourceLabel} />
+                <DetailItem label="原始出生日期" value={result.originalBirthInput} />
+                <DetailItem label="原始出生時間／時辰" value={result.originalTimeInput} />
+                <DetailItem label="出生生肖" value={result.birthZodiac} />
+                <DetailItem label="出生日期判定" value={result.birthRule} />
+                <DetailItem label="今日日期判定" value={result.todayRule} />
+                <DetailItem label="虛歲計算式" value={result.suiAgeFormula} />
+                <DetailItem label="計算原則" value="目前農曆年 - 出生農曆年 + 1；出生當年即為一歲。" />
+              </dl>
+            </div>
+          </details>
+        </>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-(--color-border) bg-(--color-surface-muted) p-8 text-center text-(--color-text-secondary)">
+          完成輸入資料後，按下「產生疏文資料」即可查看結果。
+        </div>
+      )}
+
+      <aside className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-4 text-xs leading-5 text-(--color-text-muted)" aria-label="免責聲明">
+        <span className="font-semibold text-(--color-text-secondary)">使用提醒：</span>
+        本工具依輸入資料提供疏文欄位的換算與整理，結果僅供一般參考。各宮廟、法師或疏文格式可能有不同規範，請以實際使用單位的規定為準。
+      </aside>
+    </div>
+  );
+};
+
+export default RitualResults;

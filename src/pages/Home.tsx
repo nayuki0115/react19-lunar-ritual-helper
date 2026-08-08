@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { getEffectiveSolarDate, type BirthInput } from "@/utils/lunar";
 import RitualResults from "@/components/RitualResults";
+import { useDayBoundaryClock } from "@/hooks/useDayBoundaryClock";
 import {
   createDefaultFormState,
   toBirthInput,
@@ -43,8 +44,8 @@ const Home = () => {
   const [submittedGender, setSubmittedGender] = useState<FormState["gender"]>("");
   const resultSectionRef = useRef<HTMLDivElement>(null);
 
-  const now = useMemo(() => new Date(), []);
-  const civilToday = useMemo(() => getEffectiveSolarDate(now, "civil"), [now]);
+  const { mode: dayMode, setMode: setDayMode, now } = useDayBoundaryClock();
+  const civilToday = getEffectiveSolarDate(now, "civil");
   const maxSolarDate = `${civilToday.year}-${String(civilToday.month).padStart(2, "0")}-${String(civilToday.day).padStart(2, "0")}`;
   const updateForm = (updater: (previous: FormState) => FormState) => {
     setFormState((previous) => {
@@ -209,7 +210,13 @@ const Home = () => {
         </div>
 
         <div ref={resultSectionRef} className="scroll-mt-24 lg:col-span-7">
-          <RitualResults input={submittedInput} gender={submittedGender} now={now} />
+          <RitualResults
+            input={submittedInput}
+            gender={submittedGender}
+            now={now}
+            dayMode={dayMode}
+            onDayModeChange={setDayMode}
+          />
         </div>
       </section>
     </div>

@@ -150,8 +150,8 @@ const Home = () => {
                   </>
                 ) : (
                   <>
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      <label className="text-xs text-(--color-text-muted)">農曆出生年（西元年份）
+                    <div className="mt-3 grid grid-cols-3 items-end gap-2">
+                      <label className="text-xs text-(--color-text-muted)">農曆出生年（西元）
                         <input inputMode="numeric" placeholder="例：1992" value={formState.lunar.year} aria-invalid={Boolean(errors.lunarYear)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, year: event.target.value } }))} className={fieldClass} />
                       </label>
                       <label className="text-xs text-(--color-text-muted)">月份

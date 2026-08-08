@@ -102,7 +102,7 @@ export const validateBirthForm = (state: FormState, now = new Date()): FormError
     if (day === null || day < 1 || day > 30) errors.lunarDay = "農曆日期必須介於 1 到 30";
 
     if (year !== null) {
-      const currentLunarYear = resolveTodayProfile(now, "folk").lunarDate.year;
+      const currentLunarYear = resolveTodayProfile(now, "civil").lunarDate.year;
       if (year > currentLunarYear) errors.lunarYear = "農曆出生年不得晚於目前農曆年";
       else {
         try {

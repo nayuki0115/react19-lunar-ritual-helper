@@ -61,6 +61,23 @@ describe("birth input validation", () => {
     });
   });
 
+  it("changes the valid lunar birth year exactly at civil midnight", () => {
+    const state = validSolarState();
+    state.birthMode = "lunar";
+    state.lunar = {
+      year: "2025", month: "1", day: "1",
+      timeMode: "unknown", timeBranch: "", timeExact: "",
+    };
+
+    const beforeMidnight = new Date("2025-01-28T23:59:59+08:00");
+    expect(validateBirthForm(state, beforeMidnight).lunarYear).toBe(
+      "農曆出生年不得晚於目前農曆年",
+    );
+
+    const atMidnight = new Date("2025-01-29T00:00:00+08:00");
+    expect(validateBirthForm(state, atMidnight).lunarYear).toBeUndefined();
+  });
+
   it("creates only the active mode input", () => {
     const state = validSolarState();
     state.lunar = {

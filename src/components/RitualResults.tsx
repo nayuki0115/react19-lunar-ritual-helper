@@ -1,11 +1,13 @@
 import { createRitualResultViewModel } from "@/utils/ritualResults";
-import { resolveTodayProfile, type BirthInput } from "@/utils/lunar";
+import { resolveTodayProfile, type BirthInput, type DayMode } from "@/utils/lunar";
 import type { Gender } from "@/utils/formSpec";
 
 type Props = {
   input: BirthInput | null;
   gender: Gender | "";
   now: Date;
+  dayMode: DayMode;
+  onDayModeChange: (mode: DayMode) => void;
 };
 
 const ResultItem = ({ label, value }: { label: string; value: string }) => (
@@ -22,14 +24,43 @@ const DetailItem = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-const RitualResults = ({ input, gender, now }: Props) => {
-  const today = resolveTodayProfile(now, "folk");
-  const result = input && gender ? createRitualResultViewModel(input, gender, now) : null;
+const RitualResults = ({ input, gender, now, dayMode, onDayModeChange }: Props) => {
+  const today = resolveTodayProfile(now, dayMode);
+  const result = input && gender
+    ? createRitualResultViewModel(input, gender, now, dayMode)
+    : null;
 
   return (
     <div className="grid gap-4">
       <section className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6">
-        <h2 className="font-semibold text-(--color-text-primary)">今日疏文與流年資訊</h2>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-(--color-text-primary)">今日疏文與流年資訊</h2>
+            <p className="mt-1 text-xs text-(--color-text-muted)">
+              {dayMode === "folk" ? "民俗模式於 23:00 換日" : "民用模式於 00:00 換日"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-(--color-text-muted)">換日模式</span>
+            <div className="inline-flex rounded-lg border border-(--color-border) bg-(--color-surface-muted) p-0.5" role="group" aria-label="換日模式">
+              {(["folk", "civil"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={dayMode === mode}
+                  onClick={() => onDayModeChange(mode)}
+                  className={`min-h-8 rounded-md px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) ${
+                    dayMode === mode
+                      ? "bg-(--color-accent-muted) font-medium text-(--color-accent-text) shadow-sm"
+                      : "text-(--color-text-secondary)"
+                  }`}
+                >
+                  {mode === "folk" ? "民俗 23:00" : "民用 00:00"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <ResultItem label="天運／歲次（疏文填寫內容）" value={`${today.ganzhiYear}年 ${today.lunarDateText}`} />
           <ResultItem label="今日流年生肖" value={`屬${today.zodiac}`} />

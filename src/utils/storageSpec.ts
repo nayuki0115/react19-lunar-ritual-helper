@@ -14,6 +14,7 @@ export type SettingsStorage = {
   version: 1;
   dayMode: DayMode;
   detailsOpen: boolean;
+  skipShareWarning: boolean;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -63,8 +64,11 @@ export const decodePersonalStorage = (raw: string): PersonalStorage | null => {
     : null;
 };
 
-export const encodeSettingsStorage = (settings: Omit<SettingsStorage, "version">): string =>
-  JSON.stringify({ version: 1, ...settings } satisfies SettingsStorage);
+type SettingsStorageInput = Omit<SettingsStorage, "version" | "skipShareWarning"> &
+  Partial<Pick<SettingsStorage, "skipShareWarning">>;
+
+export const encodeSettingsStorage = (settings: SettingsStorageInput): string =>
+  JSON.stringify({ version: 1, skipShareWarning: false, ...settings } satisfies SettingsStorage);
 
 export const decodeSettingsStorage = (raw: string): SettingsStorage | null => {
   const value = parseJson(raw);
@@ -72,7 +76,13 @@ export const decodeSettingsStorage = (raw: string): SettingsStorage | null => {
     && value.version === 1
     && (value.dayMode === "folk" || value.dayMode === "civil")
     && typeof value.detailsOpen === "boolean"
-    ? { version: 1, dayMode: value.dayMode, detailsOpen: value.detailsOpen }
+    && (value.skipShareWarning === undefined || typeof value.skipShareWarning === "boolean")
+    ? {
+        version: 1,
+        dayMode: value.dayMode,
+        detailsOpen: value.detailsOpen,
+        skipShareWarning: value.skipShareWarning ?? false,
+      }
     : null;
 };
 

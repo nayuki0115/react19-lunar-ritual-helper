@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { getEffectiveSolarDate, type BirthInput } from "@/utils/lunar";
 import RitualResults from "@/components/RitualResults";
+import ShareDialog from "@/components/ShareDialog";
 import { useDayBoundaryClock } from "@/hooks/useDayBoundaryClock";
 import {
   createDefaultFormState,
@@ -19,6 +20,7 @@ import {
   encodeSettingsStorage,
   loadStoredPreferences,
 } from "@/utils/storageSpec";
+import { clearShareParams, createShareUrl, decodeShareParams } from "@/utils/urlSpec";
 
 const SHICHEN_OPTIONS: ReadonlyArray<{ value: TimeBranchValue; label: string }> = [
   { value: "zi", label: "子時（不確定早晚）" },
@@ -44,32 +46,70 @@ const ErrorMessage = ({ id, children }: { id: string; children?: string }) =>
   children ? <p id={id} className="mt-2 text-sm text-(--color-state-error)" role="alert">{children}</p> : null;
 
 const Home = () => {
-  const [stored] = useState(() => loadStoredPreferences(window.localStorage));
-  const [formState, setFormState] = useState<FormState>(() => stored.personal?.form ?? createDefaultFormState());
+  const [initial] = useState(() => {
+    const stored = loadStoredPreferences(window.localStorage);
+    const share = decodeShareParams(new URLSearchParams(window.location.search));
+    return { stored, share };
+  });
+  const { stored } = initial;
+  const initialShared = initial.share.status === "valid" ? initial.share : null;
+  const [formState, setFormState] = useState<FormState>(() => initialShared?.form ?? stored.personal?.form ?? createDefaultFormState());
   const [rememberData, setRememberData] = useState(Boolean(stored.personal));
   const [rememberSettings, setRememberSettings] = useState(Boolean(stored.settings));
   const [privacyOpen, setPrivacyOpen] = useState(Boolean(stored.personal || stored.settings));
   const [detailsOpen, setDetailsOpen] = useState(stored.settings?.detailsOpen ?? false);
+  const [skipShareWarning, setSkipShareWarning] = useState(stored.settings?.skipShareWarning ?? false);
+  const [savedDayMode, setSavedDayMode] = useState(stored.settings?.dayMode ?? "folk");
+  const [shareStatus, setShareStatus] = useState(initial.share.status);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [manualShareUrl, setManualShareUrl] = useState<string | null>(null);
+  const [shareSkipChoice, setShareSkipChoice] = useState(false);
+  const [shareNotice, setShareNotice] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
-  const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [submittedInput, setSubmittedInput] = useState<BirthInput | null>(null);
-  const [submittedGender, setSubmittedGender] = useState<FormState["gender"]>("");
+  const [hasSubmitted, setHasSubmitted] = useState(Boolean(initialShared));
+  const [submittedInput, setSubmittedInput] = useState<BirthInput | null>(() => initialShared ? toBirthInput(initialShared.form) : null);
+  const [submittedGender, setSubmittedGender] = useState<FormState["gender"]>(() => initialShared?.form.gender ?? "");
+  const [submittedForm, setSubmittedForm] = useState<FormState | null>(() => initialShared?.form ?? null);
   const resultSectionRef = useRef<HTMLDivElement>(null);
+  const allowPersonalSaveRef = useRef(!initialShared);
 
-  const { mode: dayMode, setMode: setDayMode, now } = useDayBoundaryClock(stored.settings?.dayMode);
+  const { mode: dayMode, setMode: setDayMode, now } = useDayBoundaryClock(initialShared?.dayMode ?? savedDayMode);
 
   useEffect(() => {
-    if (rememberData) window.localStorage.setItem(PERSONAL_STORAGE_KEY, encodePersonalStorage(formState));
+    if (rememberData && allowPersonalSaveRef.current) {
+      window.localStorage.setItem(PERSONAL_STORAGE_KEY, encodePersonalStorage(formState));
+    }
   }, [formState, rememberData]);
 
   useEffect(() => {
-    if (rememberSettings) {
+    if (rememberSettings && shareStatus !== "valid") {
       window.localStorage.setItem(
         SETTINGS_STORAGE_KEY,
-        encodeSettingsStorage({ dayMode, detailsOpen }),
+        encodeSettingsStorage({ dayMode: savedDayMode, detailsOpen, skipShareWarning }),
       );
     }
-  }, [dayMode, detailsOpen, rememberSettings]);
+  }, [savedDayMode, detailsOpen, rememberSettings, skipShareWarning, shareStatus]);
+
+  useEffect(() => {
+    if (!initialShared || !window.matchMedia("(max-width: 1023px)").matches) return;
+    const frame = window.requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      resultSectionRef.current?.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [initialShared]);
+
+  const handleDayModeChange = (mode: "folk" | "civil") => {
+    setDayMode(mode);
+    setSavedDayMode(mode);
+    if (shareStatus === "valid") {
+      clearShareParams(window.location, window.history);
+      setShareStatus("none");
+    }
+  };
 
   const civilToday = getEffectiveSolarDate(now, "civil");
   const maxSolarDate = `${civilToday.year}-${String(civilToday.month).padStart(2, "0")}-${String(civilToday.day).padStart(2, "0")}`;
@@ -102,6 +142,11 @@ const Home = () => {
 
     setSubmittedInput(toBirthInput(formState));
     setSubmittedGender(formState.gender);
+    setSubmittedForm(structuredClone(formState));
+    if (shareStatus === "valid") {
+      clearShareParams(window.location, window.history);
+      setShareStatus("none");
+    }
     requestAnimationFrame(() => {
       if (window.matchMedia("(max-width: 1023px)").matches) {
         const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -119,12 +164,18 @@ const Home = () => {
     setHasSubmitted(false);
     setSubmittedInput(null);
     setSubmittedGender("");
+    setSubmittedForm(null);
     setRememberData(false);
     window.localStorage.removeItem(PERSONAL_STORAGE_KEY);
+    if (shareStatus !== "none") {
+      clearShareParams(window.location, window.history);
+      setShareStatus("none");
+    }
   };
 
   const handleRememberDataChange = (enabled: boolean) => {
     setRememberData(enabled);
+    if (enabled) allowPersonalSaveRef.current = true;
     if (enabled) window.localStorage.setItem(PERSONAL_STORAGE_KEY, encodePersonalStorage(formState));
     else window.localStorage.removeItem(PERSONAL_STORAGE_KEY);
   };
@@ -134,9 +185,10 @@ const Home = () => {
     if (enabled) {
       window.localStorage.setItem(
         SETTINGS_STORAGE_KEY,
-        encodeSettingsStorage({ dayMode, detailsOpen }),
+        encodeSettingsStorage({ dayMode: savedDayMode, detailsOpen, skipShareWarning }),
       );
     } else {
+      setSkipShareWarning(false);
       window.localStorage.removeItem(SETTINGS_STORAGE_KEY);
     }
   };
@@ -144,8 +196,55 @@ const Home = () => {
   const handleResetSettings = () => {
     setRememberSettings(false);
     setDayMode("folk");
+    setSavedDayMode("folk");
     setDetailsOpen(false);
+    setSkipShareWarning(false);
     window.localStorage.removeItem(SETTINGS_STORAGE_KEY);
+  };
+
+  const copyShareUrl = async (url: string) => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(url);
+      setShareDialogOpen(false);
+      setManualShareUrl(null);
+      setShareNotice("分享連結已複製");
+    } catch {
+      setManualShareUrl(url);
+      setShareDialogOpen(true);
+    }
+  };
+
+  const handleShare = () => {
+    if (!submittedInput || !submittedGender || !submittedForm) return;
+    const url = createShareUrl(window.location, { form: submittedForm, dayMode });
+    setShareNotice("");
+    if (rememberSettings && skipShareWarning) {
+      void copyShareUrl(url);
+    } else {
+      setManualShareUrl(null);
+      setShareSkipChoice(false);
+      setShareDialogOpen(true);
+    }
+  };
+
+  const handleConfirmShare = () => {
+    if (!submittedForm) return;
+    if (rememberSettings && shareSkipChoice) setSkipShareWarning(true);
+    const url = createShareUrl(window.location, { form: submittedForm, dayMode });
+    void copyShareUrl(url);
+  };
+
+  const handleClearInvalidShare = () => {
+    clearShareParams(window.location, window.history);
+    const fallbackForm = stored.personal?.form ?? createDefaultFormState();
+    setFormState(fallbackForm);
+    setSubmittedInput(null);
+    setSubmittedGender("");
+    setSubmittedForm(null);
+    setHasSubmitted(false);
+    setDayMode(savedDayMode);
+    setShareStatus("none");
   };
 
   const activeDraft = formState[formState.birthMode];
@@ -158,6 +257,19 @@ const Home = () => {
           輸入出生資料，系統會整理農曆生日、生肖、虛歲與生辰。
         </p>
       </section>
+
+      {shareStatus === "invalid" && (
+        <section className="mb-6 rounded-xl border border-(--color-state-error) bg-(--color-surface) p-4" role="alert">
+          <p className="text-sm text-(--color-text-primary)">分享連結無效或資料不完整，無法還原資料。</p>
+          <button
+            type="button"
+            onClick={handleClearInvalidShare}
+            className="mt-3 rounded-lg border border-(--color-border) px-3 py-2 text-sm text-(--color-text-primary)"
+          >
+            清除此分享連結
+          </button>
+        </section>
+      )}
 
       <section className="grid gap-6 lg:grid-cols-12">
         <div className="lg:col-span-5">
@@ -294,13 +406,13 @@ const Home = () => {
                     />
                     <span>
                       記住設定
-                      <span className="mt-0.5 block text-xs leading-5 text-(--color-text-muted)">在這台裝置保存換日模式與詳細資訊展開狀態。</span>
+                      <span className="mt-0.5 block text-xs leading-5 text-(--color-text-muted)">在這台裝置保存換日模式、詳細資訊展開狀態與分享提醒偏好。</span>
                     </span>
                   </label>
                   {(rememberSettings || dayMode !== "folk" || detailsOpen) && (
                     <div className="ml-6 mt-2">
                       <button type="button" onClick={handleResetSettings} className="inline-flex min-h-8 items-center rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-xs font-medium text-(--color-text-primary) shadow-sm transition-colors hover:bg-(--color-bg-muted) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text)">重設設定</button>
-                      <p className="mt-1 text-xs leading-5 text-(--color-text-muted)">換日模式將恢復為民俗 23:00，詳細資訊將恢復收合。</p>
+                      <p className="mt-1 text-xs leading-5 text-(--color-text-muted)">換日模式將恢復為民俗 23:00，詳細資訊將恢復收合，分享時會再次顯示隱私提醒。</p>
                     </div>
                   )}
                 </div>
@@ -315,12 +427,44 @@ const Home = () => {
             gender={submittedGender}
             now={now}
             dayMode={dayMode}
-            onDayModeChange={setDayMode}
+            onDayModeChange={handleDayModeChange}
             detailsOpen={detailsOpen}
             onDetailsOpenChange={setDetailsOpen}
+            fromShare={shareStatus === "valid"}
           />
+          {submittedInput && submittedGender && (
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+              <div role="status" aria-live="polite">
+                {shareNotice && (
+                  <span className="inline-flex items-center gap-2 border-l-4 border-(--color-state-success) bg-(--color-state-success-muted) px-3 py-2 text-sm font-medium text-(--color-state-success)">
+                    <span aria-hidden="true">✓</span>
+                    {shareNotice}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleShare}
+                className="rounded-xl bg-(--color-accent) px-4 py-2.5 text-sm font-medium text-white"
+              >
+                分享結果
+              </button>
+            </div>
+          )}
         </div>
       </section>
+      <ShareDialog
+        open={shareDialogOpen}
+        manualUrl={manualShareUrl}
+        rememberSettings={rememberSettings}
+        skipNextWarning={shareSkipChoice}
+        onSkipNextWarningChange={setShareSkipChoice}
+        onCancel={() => {
+          setShareDialogOpen(false);
+          setManualShareUrl(null);
+        }}
+        onConfirm={handleConfirmShare}
+      />
     </div>
   );
 };

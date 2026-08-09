@@ -33,23 +33,23 @@ const RitualResults = ({ input, gender, now, dayMode, onDayModeChange }: Props) 
   return (
     <div className="grid gap-4">
       <section className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="font-semibold text-(--color-text-primary)">今日疏文與流年資訊</h2>
+        <div className="flex items-start justify-between gap-2 sm:gap-3">
+          <div className="min-w-0">
+            <h2 className="whitespace-nowrap text-sm font-semibold text-(--color-text-primary) sm:text-base">今日疏文與流年資訊</h2>
             <p className="mt-1 text-xs text-(--color-text-muted)">
               {dayMode === "folk" ? "民俗模式於 23:00 換日" : "民用模式於 00:00 換日"}
             </p>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-(--color-text-muted)">換日模式</span>
-            <div className="inline-flex rounded-lg border border-(--color-border) bg-(--color-surface-muted) p-0.5" role="group" aria-label="換日模式">
+          <div className="flex shrink-0 items-center gap-2 text-xs">
+            <span className="hidden whitespace-nowrap text-(--color-text-muted) sm:inline">換日模式</span>
+            <div className="inline-flex whitespace-nowrap rounded-lg border border-(--color-border) bg-(--color-surface-muted) p-0.5" role="group" aria-label="換日模式">
               {(["folk", "civil"] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   aria-pressed={dayMode === mode}
                   onClick={() => onDayModeChange(mode)}
-                  className={`min-h-8 rounded-md px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) ${
+                  className={`min-h-8 rounded-md px-1 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) sm:px-2.5 ${
                     dayMode === mode
                       ? "bg-(--color-accent-muted) font-medium text-(--color-accent-text) shadow-sm"
                       : "text-(--color-text-secondary)"

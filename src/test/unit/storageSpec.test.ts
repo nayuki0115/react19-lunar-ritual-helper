@@ -27,10 +27,28 @@ describe("storage codecs", () => {
   });
 
   it("round-trips day-boundary and details preferences", () => {
-    expect(decodeSettingsStorage(encodeSettingsStorage({ dayMode: "civil", detailsOpen: true }))).toEqual({
+    expect(decodeSettingsStorage(encodeSettingsStorage({
+      dayMode: "civil",
+      detailsOpen: true,
+      skipShareWarning: true,
+    }))).toEqual({
       version: 1,
       dayMode: "civil",
       detailsOpen: true,
+      skipShareWarning: true,
+    });
+  });
+
+  it("defaults the share warning preference for settings saved before it existed", () => {
+    expect(decodeSettingsStorage(JSON.stringify({
+      version: 1,
+      dayMode: "folk",
+      detailsOpen: false,
+    }))).toEqual({
+      version: 1,
+      dayMode: "folk",
+      detailsOpen: false,
+      skipShareWarning: false,
     });
   });
 
@@ -78,7 +96,7 @@ describe("storage codecs", () => {
 
     expect(loadStoredPreferences(localStorage)).toEqual({
       personal: null,
-      settings: { version: 1, dayMode: "civil", detailsOpen: true },
+      settings: { version: 1, dayMode: "civil", detailsOpen: true, skipShareWarning: false },
     });
     expect(localStorage.getItem(PERSONAL_STORAGE_KEY)).toBeNull();
   });
@@ -106,7 +124,7 @@ describe("storage codecs", () => {
 
     expect(loadStoredPreferences(localStorage)).toEqual({
       personal: { version: 1, form },
-      settings: { version: 1, dayMode: "civil", detailsOpen: false },
+      settings: { version: 1, dayMode: "civil", detailsOpen: false, skipShareWarning: false },
     });
   });
 });

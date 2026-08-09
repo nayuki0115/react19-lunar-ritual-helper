@@ -4,8 +4,8 @@ import type { DayMode } from "@/utils/lunar";
 
 const TIMER_GRACE_MS = 50;
 
-export const useDayBoundaryClock = () => {
-  const [mode, setMode] = useState<DayMode>("folk");
+export const useDayBoundaryClock = (initialMode: DayMode = "folk") => {
+  const [mode, setMode] = useState<DayMode>(initialMode);
   const [now, setNow] = useState(() => new Date());
   const refresh = useCallback(() => setNow(new Date()), []);
   const changeMode = useCallback((nextMode: DayMode) => {

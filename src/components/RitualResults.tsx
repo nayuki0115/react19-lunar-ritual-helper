@@ -10,6 +10,7 @@ type Props = {
   onDayModeChange: (mode: DayMode) => void;
   detailsOpen: boolean;
   onDetailsOpenChange: (open: boolean) => void;
+  fromShare?: boolean;
 };
 
 const ResultItem = ({ label, value }: { label: string; value: string }) => (
@@ -26,7 +27,7 @@ const DetailItem = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-const RitualResults = ({ input, gender, now, dayMode, onDayModeChange, detailsOpen, onDetailsOpenChange }: Props) => {
+const RitualResults = ({ input, gender, now, dayMode, onDayModeChange, detailsOpen, onDetailsOpenChange, fromShare = false }: Props) => {
   const today = resolveTodayProfile(now, dayMode);
   const result = input && gender
     ? createRitualResultViewModel(input, gender, now, dayMode)
@@ -77,6 +78,11 @@ const RitualResults = ({ input, gender, now, dayMode, onDayModeChange, detailsOp
           <section className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6" aria-live="polite">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-semibold text-(--color-text-primary)">疏文資料</h2>
+              {fromShare && (
+                <span className="rounded-full bg-(--color-accent-muted) px-2 py-1 text-xs text-(--color-accent-text)">
+                  此結果來自分享連結
+                </span>
+              )}
               {result.source === "lunar" && (
                 <span className="rounded-full bg-(--color-bg-muted) px-2 py-1 text-xs text-(--color-text-secondary)">
                   使用者直接提供農曆資料

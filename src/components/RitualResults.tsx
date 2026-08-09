@@ -8,6 +8,8 @@ type Props = {
   now: Date;
   dayMode: DayMode;
   onDayModeChange: (mode: DayMode) => void;
+  detailsOpen: boolean;
+  onDetailsOpenChange: (open: boolean) => void;
 };
 
 const ResultItem = ({ label, value }: { label: string; value: string }) => (
@@ -24,7 +26,7 @@ const DetailItem = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-const RitualResults = ({ input, gender, now, dayMode, onDayModeChange }: Props) => {
+const RitualResults = ({ input, gender, now, dayMode, onDayModeChange, detailsOpen, onDetailsOpenChange }: Props) => {
   const today = resolveTodayProfile(now, dayMode);
   const result = input && gender
     ? createRitualResultViewModel(input, gender, now, dayMode)
@@ -101,7 +103,11 @@ const RitualResults = ({ input, gender, now, dayMode, onDayModeChange }: Props) 
             )}
           </section>
 
-          <details className="rounded-2xl border border-(--color-border) bg-(--color-surface) shadow-sm">
+          <details
+            open={detailsOpen}
+            onToggle={(event) => onDetailsOpenChange(event.currentTarget.open)}
+            className="rounded-2xl border border-(--color-border) bg-(--color-surface) shadow-sm"
+          >
             <summary className="cursor-pointer px-4 py-4 font-medium text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-accent-text) md:px-6">
               詳細資訊與判定說明
             </summary>

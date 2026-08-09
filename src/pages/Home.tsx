@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { getEffectiveSolarDate, type BirthInput } from "@/utils/lunar";
 import RitualResults from "@/components/RitualResults";
 import { useDayBoundaryClock } from "@/hooks/useDayBoundaryClock";
@@ -12,6 +12,13 @@ import {
   type TimeBranchValue,
   type TimeMode,
 } from "@/utils/formSpec";
+import {
+  PERSONAL_STORAGE_KEY,
+  SETTINGS_STORAGE_KEY,
+  encodePersonalStorage,
+  encodeSettingsStorage,
+  loadStoredPreferences,
+} from "@/utils/storageSpec";
 
 const SHICHEN_OPTIONS: ReadonlyArray<{ value: TimeBranchValue; label: string }> = [
   { value: "zi", label: "子時（不確定早晚）" },
@@ -37,14 +44,33 @@ const ErrorMessage = ({ id, children }: { id: string; children?: string }) =>
   children ? <p id={id} className="mt-2 text-sm text-(--color-state-error)" role="alert">{children}</p> : null;
 
 const Home = () => {
-  const [formState, setFormState] = useState<FormState>(createDefaultFormState);
+  const [stored] = useState(() => loadStoredPreferences(window.localStorage));
+  const [formState, setFormState] = useState<FormState>(() => stored.personal?.form ?? createDefaultFormState());
+  const [rememberData, setRememberData] = useState(Boolean(stored.personal));
+  const [rememberSettings, setRememberSettings] = useState(Boolean(stored.settings));
+  const [privacyOpen, setPrivacyOpen] = useState(Boolean(stored.personal || stored.settings));
+  const [detailsOpen, setDetailsOpen] = useState(stored.settings?.detailsOpen ?? false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [submittedInput, setSubmittedInput] = useState<BirthInput | null>(null);
   const [submittedGender, setSubmittedGender] = useState<FormState["gender"]>("");
   const resultSectionRef = useRef<HTMLDivElement>(null);
 
-  const { mode: dayMode, setMode: setDayMode, now } = useDayBoundaryClock();
+  const { mode: dayMode, setMode: setDayMode, now } = useDayBoundaryClock(stored.settings?.dayMode);
+
+  useEffect(() => {
+    if (rememberData) window.localStorage.setItem(PERSONAL_STORAGE_KEY, encodePersonalStorage(formState));
+  }, [formState, rememberData]);
+
+  useEffect(() => {
+    if (rememberSettings) {
+      window.localStorage.setItem(
+        SETTINGS_STORAGE_KEY,
+        encodeSettingsStorage({ dayMode, detailsOpen }),
+      );
+    }
+  }, [dayMode, detailsOpen, rememberSettings]);
+
   const civilToday = getEffectiveSolarDate(now, "civil");
   const maxSolarDate = `${civilToday.year}-${String(civilToday.month).padStart(2, "0")}-${String(civilToday.day).padStart(2, "0")}`;
   const updateForm = (updater: (previous: FormState) => FormState) => {
@@ -87,12 +113,39 @@ const Home = () => {
     });
   };
 
-  const handleReset = () => {
+  const handleClearData = () => {
     setFormState(createDefaultFormState());
     setErrors({});
     setHasSubmitted(false);
     setSubmittedInput(null);
     setSubmittedGender("");
+    setRememberData(false);
+    window.localStorage.removeItem(PERSONAL_STORAGE_KEY);
+  };
+
+  const handleRememberDataChange = (enabled: boolean) => {
+    setRememberData(enabled);
+    if (enabled) window.localStorage.setItem(PERSONAL_STORAGE_KEY, encodePersonalStorage(formState));
+    else window.localStorage.removeItem(PERSONAL_STORAGE_KEY);
+  };
+
+  const handleRememberSettingsChange = (enabled: boolean) => {
+    setRememberSettings(enabled);
+    if (enabled) {
+      window.localStorage.setItem(
+        SETTINGS_STORAGE_KEY,
+        encodeSettingsStorage({ dayMode, detailsOpen }),
+      );
+    } else {
+      window.localStorage.removeItem(SETTINGS_STORAGE_KEY);
+    }
+  };
+
+  const handleResetSettings = () => {
+    setRememberSettings(false);
+    setDayMode("folk");
+    setDetailsOpen(false);
+    window.localStorage.removeItem(SETTINGS_STORAGE_KEY);
   };
 
   const activeDraft = formState[formState.birthMode];
@@ -203,10 +256,57 @@ const Home = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <button type="submit" className="w-full rounded-xl bg-(--color-accent) py-2.5 font-medium text-white transition hover:bg-(--color-accent-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2">產生疏文資料</button>
-                <button type="button" onClick={handleReset} className="w-full rounded-xl border border-(--color-border) bg-(--color-surface-muted) py-2.5 text-(--color-text-primary) transition hover:bg-(--color-surface)">清除重填</button>
+                <button type="button" onClick={handleClearData} className="w-full rounded-xl border border-(--color-border) bg-(--color-surface-muted) py-2.5 text-(--color-text-primary) transition hover:bg-(--color-surface)">清除資料</button>
               </div>
             </form>
           </div>
+
+          <details
+            className="mt-4 rounded-2xl border border-(--color-border) bg-(--color-surface-muted)"
+            open={privacyOpen}
+            onToggle={(event) => setPrivacyOpen(event.currentTarget.open)}
+          >
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-accent-text)">
+              本機保存與隱私 <span className="font-normal text-(--color-text-muted)">（選填）</span>
+            </summary>
+            <div className="border-t border-(--color-border) px-4 py-4">
+              <p className="text-xs leading-5 text-(--color-text-muted)">不影響疏文資料的產生。啟用後，資料只會保存在目前瀏覽器。</p>
+              <div className="mt-4 grid gap-4">
+                <label className="flex items-start gap-2 text-sm text-(--color-text-primary)">
+                    <input
+                      type="checkbox"
+                      checked={rememberData}
+                      onChange={(event) => handleRememberDataChange(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-(--color-accent)"
+                    />
+                    <span>
+                      記住我的資料
+                      <span className="mt-0.5 block text-xs leading-5 text-(--color-text-muted)">在這台裝置保存性別、兩種出生日期草稿與最後使用的輸入模式。</span>
+                    </span>
+                </label>
+                <div>
+                  <label className="flex items-start gap-2 text-sm text-(--color-text-primary)">
+                    <input
+                      type="checkbox"
+                      checked={rememberSettings}
+                      onChange={(event) => handleRememberSettingsChange(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-(--color-accent)"
+                    />
+                    <span>
+                      記住設定
+                      <span className="mt-0.5 block text-xs leading-5 text-(--color-text-muted)">在這台裝置保存換日模式與詳細資訊展開狀態。</span>
+                    </span>
+                  </label>
+                  {(rememberSettings || dayMode !== "folk" || detailsOpen) && (
+                    <div className="ml-6 mt-2">
+                      <button type="button" onClick={handleResetSettings} className="inline-flex min-h-8 items-center rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-xs font-medium text-(--color-text-primary) shadow-sm transition-colors hover:bg-(--color-bg-muted) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text)">重設設定</button>
+                      <p className="mt-1 text-xs leading-5 text-(--color-text-muted)">換日模式將恢復為民俗 23:00，詳細資訊將恢復收合。</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
 
         <div ref={resultSectionRef} className="scroll-mt-24 lg:col-span-7">
@@ -216,6 +316,8 @@ const Home = () => {
             now={now}
             dayMode={dayMode}
             onDayModeChange={setDayMode}
+            detailsOpen={detailsOpen}
+            onDetailsOpenChange={setDetailsOpen}
           />
         </div>
       </section>

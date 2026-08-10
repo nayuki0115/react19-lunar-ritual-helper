@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { getEffectiveSolarDate, type BirthInput } from "@/utils/lunar";
 import RitualResults from "@/components/RitualResults";
 import ShareDialog from "@/components/ShareDialog";
+import { Button, Card, DisclosureCard, FormLabel, FormSection, formControlClass } from "@/components/ui";
 import { useDayBoundaryClock } from "@/hooks/useDayBoundaryClock";
 import {
   createDefaultFormState,
@@ -38,9 +39,6 @@ const SHICHEN_OPTIONS: ReadonlyArray<{ value: TimeBranchValue; label: string }> 
   { value: "xu", label: "戌時（19:00–20:59）" },
   { value: "hai", label: "亥時（21:00–22:59）" },
 ];
-
-const fieldClass =
-  "mt-2 block w-full rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-2 text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2 focus-visible:ring-offset-(--color-bg)";
 
 const ErrorMessage = ({ id, children }: { id: string; children?: string }) =>
   children ? <p id={id} className="mt-2 text-sm text-(--color-state-error)" role="alert">{children}</p> : null;
@@ -250,36 +248,37 @@ const Home = () => {
   const activeDraft = formState[formState.birthMode];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <section className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-(--color-text-primary) md:text-3xl">疏文填寫助手</h1>
-        <p className="mt-2 max-w-3xl text-(--color-text-secondary)">
+    <div className="mx-auto max-w-6xl px-4 py-6">
+      <section className="mb-6">
+        <p className="text-xs font-semibold tracking-[0.16em] text-(--color-accent-text)">LUNAR RITUAL HELPER</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-(--color-text-primary) sm:text-3xl">疏文填寫助手</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-(--color-text-secondary) sm:text-base">
           輸入出生資料，系統會整理農曆生日、生肖、虛歲與生辰。
         </p>
       </section>
 
       {shareStatus === "invalid" && (
-        <section className="mb-6 rounded-xl border border-(--color-state-error) bg-(--color-surface) p-4" role="alert">
+        <Card className="mb-6 border-(--color-state-error) p-4" role="alert">
           <p className="text-sm text-(--color-text-primary)">分享連結無效或資料不完整，無法還原資料。</p>
-          <button
-            type="button"
+          <Button
             onClick={handleClearInvalidShare}
-            className="mt-3 rounded-lg border border-(--color-border) px-3 py-2 text-sm text-(--color-text-primary)"
+            className="mt-3"
           >
             清除此分享連結
-          </button>
-        </section>
+          </Button>
+        </Card>
       )}
 
-      <section className="grid gap-6 lg:grid-cols-12">
-        <div className="lg:col-span-5">
-          <div className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6">
-            <h2 className="text-lg font-semibold text-(--color-text-primary)">輸入資料</h2>
-            <p className="mt-1 text-sm text-(--color-text-secondary)">標示必填的欄位完成後即可產生疏文資料。</p>
-
-            <form className="mt-5 space-y-5" onSubmit={handleSubmit} noValidate>
-              <fieldset className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                <legend className="px-1 text-sm font-medium text-(--color-text-primary)">出生日期輸入方式</legend>
+      <section className="grid gap-5 lg:grid-cols-12 lg:gap-6">
+        <div className="min-w-0 lg:col-span-5">
+          <div className="mb-3 px-1">
+            <p className="text-xs font-semibold text-(--color-accent-text)">步驟 1</p>
+            <h2 className="mt-1 text-xl font-bold text-(--color-text-primary)">輸入出生資料</h2>
+            <p className="mt-1 text-sm leading-6 text-(--color-text-secondary)">完成必填欄位後，即可在右側或下方查看疏文資料。</p>
+          </div>
+          <Card className="p-4 sm:p-5 md:p-6">
+            <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+              <FormSection legend="出生日期輸入方式" description="切換模式時，兩邊已輸入的草稿都會保留。">
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {(["solar", "lunar"] as const).map((mode) => (
                     <label key={mode} className={`cursor-pointer rounded-lg border px-3 py-2 text-center text-sm ${formState.birthMode === mode ? "border-(--color-accent) bg-(--color-surface) font-semibold text-(--color-accent-text)" : "border-(--color-border) text-(--color-text-secondary)"}`}>
@@ -288,11 +287,9 @@ const Home = () => {
                     </label>
                   ))}
                 </div>
-                <p className="mt-2 text-xs text-(--color-text-muted)">切換模式時，兩邊已輸入的草稿都會保留。</p>
-              </fieldset>
+              </FormSection>
 
-              <fieldset className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                <legend className="px-1 text-sm font-medium text-(--color-text-primary)">性別（必填）</legend>
+              <FormSection legend="性別（必填）">
                 <div className="mt-2 flex gap-6">
                   {(["male", "female"] as const).map((gender) => (
                     <label key={gender} className="inline-flex items-center gap-2 text-(--color-text-primary)">
@@ -302,29 +299,28 @@ const Home = () => {
                   ))}
                 </div>
                 <ErrorMessage id="gender-error">{errors.gender}</ErrorMessage>
-              </fieldset>
+              </FormSection>
 
-              <section className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3" aria-labelledby="birthday-heading">
-                <h3 id="birthday-heading" className="text-sm font-medium text-(--color-text-primary)">出生日期（必填）</h3>
+              <FormSection legend="出生日期（必填）">
                 {formState.birthMode === "solar" ? (
                   <>
-                    <label htmlFor="solar-date" className="mt-3 block text-xs text-(--color-text-muted)">國曆出生日期</label>
-                    <input id="solar-date" type="date" max={maxSolarDate} value={formState.solar.date} aria-invalid={Boolean(errors.solarDate)} aria-describedby={errors.solarDate ? "solar-date-error" : "solar-date-hint"} onChange={(event) => updateForm((previous) => ({ ...previous, solar: { ...previous.solar, date: event.target.value } }))} className={fieldClass} />
+                    <FormLabel htmlFor="solar-date" className="mt-3">國曆出生日期</FormLabel>
+                    <input id="solar-date" type="date" max={maxSolarDate} value={formState.solar.date} aria-invalid={Boolean(errors.solarDate)} aria-describedby={errors.solarDate ? "solar-date-error" : "solar-date-hint"} onChange={(event) => updateForm((previous) => ({ ...previous, solar: { ...previous.solar, date: event.target.value } }))} className={formControlClass} />
                     <p id="solar-date-hint" className="mt-2 text-xs text-(--color-text-muted)">系統會自動換算農曆日期，並保留閏月資訊。</p>
                     <ErrorMessage id="solar-date-error">{errors.solarDate}</ErrorMessage>
                   </>
                 ) : (
                   <>
-                    <div className="mt-3 grid grid-cols-3 items-end gap-2">
-                      <label className="text-xs text-(--color-text-muted)">農曆出生年（西元）
-                        <input inputMode="numeric" placeholder="例：1992" value={formState.lunar.year} aria-invalid={Boolean(errors.lunarYear)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, year: event.target.value } }))} className={fieldClass} />
-                      </label>
-                      <label className="text-xs text-(--color-text-muted)">月份
-                        <input type="number" min="1" max="12" placeholder="1–12" value={formState.lunar.month} aria-invalid={Boolean(errors.lunarMonth)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, month: event.target.value } }))} className={fieldClass} />
-                      </label>
-                      <label className="text-xs text-(--color-text-muted)">日期
-                        <input type="number" min="1" max="30" placeholder="1–30" value={formState.lunar.day} aria-invalid={Boolean(errors.lunarDay)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, day: event.target.value } }))} className={fieldClass} />
-                      </label>
+                    <div className="mt-3 grid grid-cols-1 items-end gap-3 sm:grid-cols-3 sm:gap-2">
+                      <FormLabel>農曆出生年（西元）
+                        <input inputMode="numeric" placeholder="例：1992" value={formState.lunar.year} aria-invalid={Boolean(errors.lunarYear)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, year: event.target.value } }))} className={formControlClass} />
+                      </FormLabel>
+                      <FormLabel>月份
+                        <input type="number" min="1" max="12" placeholder="1–12" value={formState.lunar.month} aria-invalid={Boolean(errors.lunarMonth)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, month: event.target.value } }))} className={formControlClass} />
+                      </FormLabel>
+                      <FormLabel>日期
+                        <input type="number" min="1" max="30" placeholder="1–30" value={formState.lunar.day} aria-invalid={Boolean(errors.lunarDay)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, day: event.target.value } }))} className={formControlClass} />
+                      </FormLabel>
                     </div>
                     <ErrorMessage id="lunar-year-error">{errors.lunarYear}</ErrorMessage>
                     <ErrorMessage id="lunar-month-error">{errors.lunarMonth}</ErrorMessage>
@@ -333,10 +329,9 @@ const Home = () => {
                     <p className="mt-3 text-xs leading-5 text-(--color-text-muted)">目前僅驗證基本格式，不驗證農曆日期是否實際存在；請確認輸入的農曆生日正確。閏月生日暫不支援。</p>
                   </>
                 )}
-              </section>
+              </FormSection>
 
-              <fieldset className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
-                <legend className="px-1 text-sm font-medium text-(--color-text-primary)">出生時間（必填）</legend>
+              <FormSection legend="出生時間（必填）">
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
                   {(["unknown", "branch", "exact"] as const).map((mode) => (
                     <label key={mode} className="inline-flex items-center gap-2 text-sm text-(--color-text-primary)">
@@ -348,8 +343,8 @@ const Home = () => {
 
                 {activeDraft.timeMode === "branch" && (
                   <div className="mt-3">
-                    <label htmlFor="time-branch" className="text-xs text-(--color-text-muted)">出生時辰</label>
-                    <select id="time-branch" value={activeDraft.timeBranch} aria-invalid={Boolean(errors.time)} onChange={(event) => updateForm((previous) => ({ ...previous, [previous.birthMode]: { ...previous[previous.birthMode], timeBranch: event.target.value as TimeBranchValue } }))} className={fieldClass}>
+                    <FormLabel htmlFor="time-branch">出生時辰</FormLabel>
+                    <select id="time-branch" value={activeDraft.timeBranch} aria-invalid={Boolean(errors.time)} onChange={(event) => updateForm((previous) => ({ ...previous, [previous.birthMode]: { ...previous[previous.birthMode], timeBranch: event.target.value as TimeBranchValue } }))} className={formControlClass}>
                       <option value="">請選擇時辰</option>
                       {SHICHEN_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </select>
@@ -358,30 +353,28 @@ const Home = () => {
 
                 {activeDraft.timeMode === "exact" && (
                   <div className="mt-3">
-                    <label htmlFor="time-exact" className="text-xs text-(--color-text-muted)">出生時間</label>
-                    <input id="time-exact" type="time" value={activeDraft.timeExact} aria-invalid={Boolean(errors.time)} onChange={(event) => updateForm((previous) => ({ ...previous, [previous.birthMode]: { ...previous[previous.birthMode], timeExact: event.target.value } }))} className={fieldClass} />
+                    <FormLabel htmlFor="time-exact">出生時間</FormLabel>
+                    <input id="time-exact" type="time" value={activeDraft.timeExact} aria-invalid={Boolean(errors.time)} onChange={(event) => updateForm((previous) => ({ ...previous, [previous.birthMode]: { ...previous[previous.birthMode], timeExact: event.target.value } }))} className={formControlClass} />
                   </div>
                 )}
                 {activeDraft.timeMode === "unknown" && <p className="mt-3 text-xs text-(--color-text-muted)">不知道也可以產生結果，生辰會顯示「吉時」。</p>}
                 <ErrorMessage id="time-error">{errors.time}</ErrorMessage>
-              </fieldset>
+              </FormSection>
 
-              <div className="grid grid-cols-2 gap-3">
-                <button type="submit" className="w-full rounded-xl bg-(--color-accent) py-2.5 font-medium text-white transition hover:bg-(--color-accent-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) focus-visible:ring-offset-2">產生疏文資料</button>
-                <button type="button" onClick={handleClearData} className="w-full rounded-xl border border-(--color-border) bg-(--color-surface-muted) py-2.5 text-(--color-text-primary) transition hover:bg-(--color-surface)">清除資料</button>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Button type="submit" variant="primary" className="w-full">產生疏文資料</Button>
+                <Button onClick={handleClearData} className="w-full">清除資料</Button>
               </div>
             </form>
-          </div>
+          </Card>
 
-          <details
-            className="mt-4 rounded-2xl border border-(--color-border) bg-(--color-surface-muted)"
+          <DisclosureCard
+            className="mt-4"
+            muted
+            summary={<span>本機保存與隱私 <span className="font-normal text-(--color-text-muted)">（選填）</span></span>}
             open={privacyOpen}
             onToggle={(event) => setPrivacyOpen(event.currentTarget.open)}
           >
-            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-accent-text)">
-              本機保存與隱私 <span className="font-normal text-(--color-text-muted)">（選填）</span>
-            </summary>
-            <div className="border-t border-(--color-border) px-4 py-4">
               <p className="text-xs leading-5 text-(--color-text-muted)">不影響疏文資料的產生。啟用後，資料只會保存在目前瀏覽器。</p>
               <div className="mt-4 grid gap-4">
                 <label className="flex items-start gap-2 text-sm text-(--color-text-primary)">
@@ -411,17 +404,21 @@ const Home = () => {
                   </label>
                   {(rememberSettings || dayMode !== "folk" || detailsOpen) && (
                     <div className="ml-6 mt-2">
-                      <button type="button" onClick={handleResetSettings} className="inline-flex min-h-8 items-center rounded-lg border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-xs font-medium text-(--color-text-primary) shadow-sm transition-colors hover:bg-(--color-bg-muted) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text)">重設設定</button>
+                      <Button onClick={handleResetSettings} className="min-h-9 px-3 py-1.5 text-xs">重設設定</Button>
                       <p className="mt-1 text-xs leading-5 text-(--color-text-muted)">換日模式將恢復為民俗 23:00，詳細資訊將恢復收合，分享時會再次顯示隱私提醒。</p>
                     </div>
                   )}
                 </div>
               </div>
-            </div>
-          </details>
+          </DisclosureCard>
         </div>
 
-        <div ref={resultSectionRef} className="scroll-mt-24 lg:col-span-7">
+        <div ref={resultSectionRef} className="min-w-0 scroll-mt-24 lg:col-span-7">
+          <div className="mb-3 px-1">
+            <p className="text-xs font-semibold text-(--color-accent-text)">步驟 2</p>
+            <h2 className="mt-1 text-xl font-bold text-(--color-text-primary)">查看疏文資料</h2>
+            <p className="mt-1 text-sm leading-6 text-(--color-text-secondary)">確認今日資訊，並查看整理完成的生辰、虛歲、生肖與手印。</p>
+          </div>
           <RitualResults
             input={submittedInput}
             gender={submittedGender}
@@ -442,13 +439,12 @@ const Home = () => {
                   </span>
                 )}
               </div>
-              <button
-                type="button"
+              <Button
                 onClick={handleShare}
-                className="rounded-xl bg-(--color-accent) px-4 py-2.5 text-sm font-medium text-white"
+                variant="primary"
               >
                 分享結果
-              </button>
+              </Button>
             </div>
           )}
         </div>

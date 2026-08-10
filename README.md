@@ -24,7 +24,7 @@
 - **pnpm**：套件管理
 - **Vercel**：Preview 與 Production Deployment
 
-目標開發環境為 Node.js 24 LTS 與 pnpm 10.33.0；版本設定與 CI 將依後續工程里程碑統一。
+開發環境與持續整合統一使用 Node.js 24 與 pnpm 10.33.0。`package.json`、`.node-version` 與 `.nvmrc` 會限制或提示正確版本。
 
 ## 功能說明
 
@@ -165,10 +165,26 @@
 
 ### 安裝
 
+請先確認 Node.js 與 pnpm 版本：
+
+```bash
+node --version
+pnpm --version
+```
+
+預期使用 Node.js `24.x` 與 pnpm `10.33.0`。若尚未啟用 pnpm，可使用 Node.js 內附的 Corepack：
+
+```bash
+corepack enable
+corepack prepare pnpm@10.33.0 --activate
+```
+
+接著安裝專案：
+
 ```bash
 git clone <repository-url>
 cd react19-lunar-ritual-helper
-pnpm install
+pnpm install --frozen-lockfile
 ```
 
 ### 啟動開發環境
@@ -207,7 +223,37 @@ pnpm test:watch
 pnpm build
 ```
 
-統一品質檢查指令將在後續里程碑加入。
+### 統一品質檢查
+
+以下指令會依序執行 ESLint、TypeScript 型別檢查、單元測試與正式建置：
+
+```bash
+pnpm check
+```
+
+## 持續整合與部署
+
+### GitHub Actions
+
+推送至 `main` 或建立 Pull Request 時，GitHub Actions 會使用 Node.js 24 與 pnpm 10.33.0 執行：
+
+1. 以 frozen lockfile 安裝依賴。
+2. 執行 ESLint。
+3. 執行 TypeScript 型別檢查。
+4. 執行全部單元測試。
+5. 產生正式版本建置。
+
+### Vercel
+
+Vercel 專案建議使用以下設定：
+
+- Framework Preset：Vite
+- Node.js Version：24.x
+- Install Command：`pnpm install --frozen-lockfile`
+- Build Command：`pnpm build`
+- Output Directory：`dist`
+
+Vercel 會依 `package.json` 的 `packageManager` 欄位使用 pnpm 10.33.0。環境變數目前沒有必要設定；應用程式的資料換算、LocalStorage 與分享網址皆在瀏覽器端處理。
 
 Production：
 
@@ -219,6 +265,9 @@ Production：
 
 ```text
 react19-lunar-ritual-helper/
+├─ .github/
+│  └─ workflows/
+│     └─ quality.yml
 ├─ docs/
 │  └─ product-requirements.md
 ├─ public/
@@ -226,21 +275,27 @@ react19-lunar-ritual-helper/
 │  ├─ assets/
 │  │  └─ styles/
 │  ├─ components/
-│  │  └─ AppShell.tsx
+│  │  ├─ ui/
+│  │  ├─ AppShell.tsx
+│  │  ├─ RitualResults.tsx
+│  │  └─ ShareDialog.tsx
 │  ├─ hooks/
-│  │  └─ useFormState.ts
+│  │  └─ useDayBoundaryClock.ts
 │  ├─ pages/
-│  │  ├─ Home.tsx
-│  │  └─ Result.tsx
+│  │  └─ Home.tsx
 │  ├─ router/
+│  ├─ test/
 │  ├─ types/
 │  ├─ utils/
-│  │  ├─ lunar.ts
-│  │  ├─ timeBranches.ts
-│  │  └─ zh.ts
+│  │  ├─ lunar/
+│  │  ├─ formSpec.ts
+│  │  ├─ storageSpec.ts
+│  │  └─ urlSpec.ts
 │  ├─ App.tsx
 │  ├─ index.css
 │  └─ main.tsx
+├─ .node-version
+├─ .nvmrc
 ├─ eslint.config.js
 ├─ package.json
 ├─ pnpm-lock.yaml
@@ -248,7 +303,7 @@ react19-lunar-ritual-helper/
 └─ vite.config.ts
 ```
 
-後續重構會逐步將日期、出生資料、時辰、虛歲、URL 與 storage 規則移至可獨立測試的領域及基礎設施模組；實際結構以各里程碑完成後的程式為準。
+日期、出生資料、時辰、虛歲、分享網址與本機儲存規則皆位於可獨立測試的工具模組；介面元件與頁面組合則分開管理。
 
 ## 架構設計
 

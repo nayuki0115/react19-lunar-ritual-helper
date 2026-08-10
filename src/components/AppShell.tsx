@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui";
 
 type Props = {
   children: ReactNode;
@@ -106,17 +107,16 @@ const AppShell = ({ children }: Props) => {
           </nav>
 
           {/* Mobile hamburger */}
-          <button
+          <Button
             ref={buttonRef}
-            type="button"
-            className="md:hidden inline-flex items-center justify-center rounded-lg border border-(--color-bg-muted) bg-(--color-surface) px-3 py-2 text-sm text-(--color-text-primary)"
-            aria-label="Toggle menu"
+            className="min-h-10 rounded-lg px-3 py-2 md:hidden"
+            aria-label={menuOpen ? "關閉導覽選單" : "開啟導覽選單"}
             aria-expanded={menuOpen}
             aria-controls="mobile-menu"
             onClick={() => setMenuOpen((v) => !v)}
           >
             ☰
-          </button>
+          </Button>
         </div>
 
         {/* Mobile overlay + menu */}

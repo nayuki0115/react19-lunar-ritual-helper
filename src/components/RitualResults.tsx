@@ -1,6 +1,7 @@
 import { createRitualResultViewModel } from "@/utils/ritualResults";
 import { resolveTodayProfile, type BirthInput, type DayMode } from "@/utils/lunar";
 import type { Gender } from "@/utils/formSpec";
+import { Button, Card, DisclosureCard } from "@/components/ui";
 
 type Props = {
   input: BirthInput | null;
@@ -14,10 +15,10 @@ type Props = {
 };
 
 const ResultItem = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-(--color-border) bg-(--color-surface-muted) p-3">
+  <Card muted className="p-3">
     <div className="text-xs text-(--color-text-muted)">{label}</div>
-    <div className="mt-1 text-lg font-semibold text-(--color-text-primary)">{value}</div>
-  </div>
+    <div className="mt-1 break-words text-lg font-semibold text-(--color-text-primary)">{value}</div>
+  </Card>
 );
 
 const DetailItem = ({ label, value }: { label: string; value: string }) => (
@@ -34,11 +35,11 @@ const RitualResults = ({ input, gender, now, dayMode, onDayModeChange, detailsOp
     : null;
 
   return (
-    <div className="grid gap-4">
-      <section className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6">
-        <div className="flex items-start justify-between gap-2 sm:gap-3">
+    <div className="min-w-0 grid gap-4">
+      <Card className="p-4 sm:p-5 md:p-6">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="whitespace-nowrap text-sm font-semibold text-(--color-text-primary) sm:text-base">今日疏文與流年資訊</h2>
+            <h2 className="text-base font-semibold leading-6 text-(--color-text-primary)">今日疏文與流年資訊</h2>
             <p className="mt-1 text-xs text-(--color-text-muted)">
               {dayMode === "folk" ? "民俗模式於 23:00 換日" : "民用模式於 00:00 換日"}
             </p>
@@ -47,19 +48,21 @@ const RitualResults = ({ input, gender, now, dayMode, onDayModeChange, detailsOp
             <span className="hidden whitespace-nowrap text-(--color-text-muted) sm:inline">換日模式</span>
             <div className="inline-flex whitespace-nowrap rounded-lg border border-(--color-border) bg-(--color-surface-muted) p-0.5" role="group" aria-label="換日模式">
               {(["folk", "civil"] as const).map((mode) => (
-                <button
+                <Button
                   key={mode}
-                  type="button"
                   aria-pressed={dayMode === mode}
+                  aria-label={mode === "folk" ? "民俗 23:00" : "民用 00:00"}
                   onClick={() => onDayModeChange(mode)}
-                  className={`min-h-8 rounded-md px-1 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--color-accent-text) sm:px-2.5 ${
+                  variant="quiet"
+                  className={`min-h-7 rounded-md px-2 py-0.5 text-[11px] font-medium sm:min-h-8 sm:px-2.5 sm:py-1 sm:text-xs ${
                     dayMode === mode
                       ? "bg-(--color-accent-muted) font-medium text-(--color-accent-text) shadow-sm"
                       : "text-(--color-text-secondary)"
                   }`}
                 >
-                  {mode === "folk" ? "民俗 23:00" : "民用 00:00"}
-                </button>
+                  <span aria-hidden="true" className="sm:hidden">{mode === "folk" ? "民俗" : "民用"}</span>
+                  <span aria-hidden="true" className="hidden sm:inline">{mode === "folk" ? "民俗 23:00" : "民用 00:00"}</span>
+                </Button>
               ))}
             </div>
           </div>
@@ -71,11 +74,11 @@ const RitualResults = ({ input, gender, now, dayMode, onDayModeChange, detailsOp
         <p className="mt-3 text-xs leading-5 text-(--color-text-muted)">
           * 「歲次」是指當年的干支年；實際疏文中的「天運」或「歲次」欄位，常需填今年干支年及今天農曆月日。
         </p>
-      </section>
+      </Card>
 
       {result ? (
         <>
-          <section className="rounded-2xl border border-(--color-border) bg-(--color-surface) p-4 shadow-sm md:p-6" aria-live="polite">
+          <Card className="p-4 sm:p-5 md:p-6" aria-live="polite">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-semibold text-(--color-text-primary)">疏文資料</h2>
               {fromShare && (
@@ -107,29 +110,24 @@ const RitualResults = ({ input, gender, now, dayMode, onDayModeChange, detailsOp
                 此出生農曆資料由使用者自行提供，系統僅檢查基本格式，不驗證其與實際農曆日期是否一致。
               </div>
             )}
-          </section>
+          </Card>
 
-          <details
+          <DisclosureCard
             open={detailsOpen}
             onToggle={(event) => onDetailsOpenChange(event.currentTarget.open)}
-            className="rounded-2xl border border-(--color-border) bg-(--color-surface) shadow-sm"
+            summary="詳細資訊與判定說明"
           >
-            <summary className="cursor-pointer px-4 py-4 font-medium text-(--color-text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-accent-text) md:px-6">
-              詳細資訊與判定說明
-            </summary>
-            <div className="border-t border-(--color-border) px-4 py-4 md:px-6">
-              <dl className="grid gap-4 sm:grid-cols-2">
-                <DetailItem label="出生資料來源" value={result.sourceLabel} />
-                <DetailItem label="原始出生日期" value={result.originalBirthInput} />
-                <DetailItem label="原始出生時間／時辰" value={result.originalTimeInput} />
-                <DetailItem label="出生生肖" value={result.birthZodiac} />
-                <DetailItem label="出生日期判定" value={result.birthRule} />
-                <DetailItem label="今日日期判定" value={result.todayRule} />
-                <DetailItem label="虛歲計算式" value={result.suiAgeFormula} />
-                <DetailItem label="計算原則" value="目前農曆年 - 出生農曆年 + 1；出生當年即為一歲。" />
-              </dl>
-            </div>
-          </details>
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <DetailItem label="出生資料來源" value={result.sourceLabel} />
+              <DetailItem label="原始出生日期" value={result.originalBirthInput} />
+              <DetailItem label="原始出生時間／時辰" value={result.originalTimeInput} />
+              <DetailItem label="出生生肖" value={result.birthZodiac} />
+              <DetailItem label="出生日期判定" value={result.birthRule} />
+              <DetailItem label="今日日期判定" value={result.todayRule} />
+              <DetailItem label="虛歲計算式" value={result.suiAgeFormula} />
+              <DetailItem label="計算原則" value="目前農曆年 - 出生農曆年 + 1；出生當年即為一歲。" />
+            </dl>
+          </DisclosureCard>
         </>
       ) : (
         <div className="rounded-2xl border border-dashed border-(--color-border) bg-(--color-surface-muted) p-8 text-center text-(--color-text-secondary)">

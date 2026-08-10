@@ -1,4 +1,14 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+
+const focusableSelector = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled]):not([type='hidden'])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
 
 type Props = {
   open: boolean;
@@ -19,8 +29,31 @@ const ModalDrawer = ({ open, title, description, children, actions, onClose }: P
   useEffect(() => {
     if (!open) return;
     previousFocusRef.current = document.activeElement as HTMLElement | null;
-    firstActionRef.current?.querySelector<HTMLElement>("button, input, textarea")?.focus();
-    return () => previousFocusRef.current?.focus();
+    const appRoot = document.getElementById("root");
+    const previousOverflow = document.body.style.overflow;
+    const previousAriaHidden = appRoot?.getAttribute("aria-hidden") ?? null;
+    const previousInert = appRoot?.inert ?? false;
+
+    document.body.style.overflow = "hidden";
+    if (appRoot) {
+      appRoot.inert = true;
+      appRoot.setAttribute("aria-hidden", "true");
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      firstActionRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.body.style.overflow = previousOverflow;
+      if (appRoot) {
+        appRoot.inert = previousInert;
+        if (previousAriaHidden === null) appRoot.removeAttribute("aria-hidden");
+        else appRoot.setAttribute("aria-hidden", previousAriaHidden);
+      }
+      previousFocusRef.current?.focus();
+    };
   }, [open]);
 
   if (!open) return null;
@@ -32,10 +65,12 @@ const ModalDrawer = ({ open, title, description, children, actions, onClose }: P
       return;
     }
     if (event.key !== "Tab") return;
-    const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    );
-    if (!focusable?.length) return;
+    const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector);
+    if (!focusable?.length) {
+      event.preventDefault();
+      dialogRef.current?.focus();
+      return;
+    }
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (event.shiftKey && document.activeElement === first) {
@@ -47,10 +82,11 @@ const ModalDrawer = ({ open, title, description, children, actions, onClose }: P
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-60 flex items-end justify-center bg-black/45 sm:items-center sm:p-4" role="presentation">
       <div
         ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -64,7 +100,8 @@ const ModalDrawer = ({ open, title, description, children, actions, onClose }: P
         {children}
         <div ref={firstActionRef} className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">{actions}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

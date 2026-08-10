@@ -10,6 +10,7 @@ const AppShell = ({ children }: Props) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const firstMobileLinkRef = useRef<HTMLAnchorElement | null>(null);
   const location = useLocation();
 
   const navItems = useMemo(
@@ -47,8 +48,13 @@ const AppShell = ({ children }: Props) => {
   useEffect(() => {
     if (!menuOpen) return;
 
+    firstMobileLinkRef.current?.focus();
+
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeMenu();
+      if (e.key === "Escape") {
+        closeMenu();
+        buttonRef.current?.focus();
+      }
     };
 
     const onPointerDown = (e: PointerEvent) => {
@@ -87,7 +93,7 @@ const AppShell = ({ children }: Props) => {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex gap-6 text-sm">
+          <nav className="hidden md:flex gap-6 text-sm" aria-label="主要導覽">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -133,13 +139,12 @@ const AppShell = ({ children }: Props) => {
               id="mobile-menu"
               ref={panelRef}
               className="md:hidden border-t border-(--color-bg-muted) bg-(--color-surface) relative z-50"
-              role="dialog"
-              aria-modal="true"
             >
-              <div className="mx-auto max-w-6xl px-4 py-3 flex flex-col gap-2 text-sm">
+              <nav className="mx-auto max-w-6xl px-4 py-3 flex flex-col gap-2 text-sm" aria-label="行動版主要導覽">
                 {navItems.map((item) => (
                   <NavLink
                     key={item.to}
+                    ref={item === navItems[0] ? firstMobileLinkRef : undefined}
                     to={item.to}
                     className={({ isActive }) =>
                       [
@@ -153,7 +158,7 @@ const AppShell = ({ children }: Props) => {
                     {item.label}
                   </NavLink>
                 ))}
-              </div>
+              </nav>
             </div>
           </>
         ) : null}
@@ -163,7 +168,7 @@ const AppShell = ({ children }: Props) => {
 
       <footer className="border-t border-(--color-border) bg-(--color-shell)">
         <div className="mx-auto max-w-6xl px-4 py-6 text-sm text-(--color-text-secondary)">
-          © {new Date().getFullYear()} <a href="https://github.com/nayuki0115" target="_blank"> Annie Wu · Author info </a>
+          © {new Date().getFullYear()} <a href="https://github.com/nayuki0115" target="_blank" rel="noreferrer"> Annie Wu · Author info（另開新視窗）</a>
         </div>
       </footer>
     </div>

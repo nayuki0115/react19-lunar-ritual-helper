@@ -63,6 +63,7 @@ const Home = () => {
   const [manualShareUrl, setManualShareUrl] = useState<string | null>(null);
   const [shareSkipChoice, setShareSkipChoice] = useState(false);
   const [shareNotice, setShareNotice] = useState("");
+  const [resultAnnouncement, setResultAnnouncement] = useState(initialShared ? "已載入分享連結的命盤結果。" : "");
   const [errors, setErrors] = useState<FormErrors>({});
   const [hasSubmitted, setHasSubmitted] = useState(Boolean(initialShared));
   const [submittedInput, setSubmittedInput] = useState<BirthInput | null>(() => initialShared ? toBirthInput(initialShared.form) : null);
@@ -141,6 +142,7 @@ const Home = () => {
     setSubmittedInput(toBirthInput(formState));
     setSubmittedGender(formState.gender);
     setSubmittedForm(structuredClone(formState));
+    setResultAnnouncement("命盤結果已更新。手機版畫面將移至結果區。");
     if (shareStatus === "valid") {
       clearShareParams(window.location, window.history);
       setShareStatus("none");
@@ -281,7 +283,7 @@ const Home = () => {
               <FormSection legend="出生日期輸入方式" description="切換模式時，兩邊已輸入的草稿都會保留。">
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {(["solar", "lunar"] as const).map((mode) => (
-                    <label key={mode} className={`cursor-pointer rounded-lg border px-3 py-2 text-center text-sm ${formState.birthMode === mode ? "border-(--color-accent) bg-(--color-surface) font-semibold text-(--color-accent-text)" : "border-(--color-border) text-(--color-text-secondary)"}`}>
+                    <label key={mode} className={`cursor-pointer rounded-lg border px-3 py-2 text-center text-sm focus-within:outline-none focus-within:ring-2 focus-within:ring-(--color-accent-text) focus-within:ring-offset-2 ${formState.birthMode === mode ? "border-(--color-accent) bg-(--color-surface) font-semibold text-(--color-accent-text)" : "border-(--color-border) text-(--color-text-secondary)"}`}>
                       <input type="radio" name="birthMode" value={mode} className="sr-only" checked={formState.birthMode === mode} onChange={() => updateMode(mode)} />
                       {mode === "solar" ? "國曆自動換算" : "已知農曆日期"}
                     </label>
@@ -289,7 +291,7 @@ const Home = () => {
                 </div>
               </FormSection>
 
-              <FormSection legend="性別（必填）">
+              <FormSection legend="性別（必填）" aria-describedby={errors.gender ? "gender-error" : undefined}>
                 <div className="mt-2 flex gap-6">
                   {(["male", "female"] as const).map((gender) => (
                     <label key={gender} className="inline-flex items-center gap-2 text-(--color-text-primary)">
@@ -312,14 +314,14 @@ const Home = () => {
                 ) : (
                   <>
                     <div className="mt-3 grid grid-cols-1 items-end gap-3 sm:grid-cols-3 sm:gap-2">
-                      <FormLabel>農曆出生年（西元）
-                        <input inputMode="numeric" placeholder="例：1992" value={formState.lunar.year} aria-invalid={Boolean(errors.lunarYear)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, year: event.target.value } }))} className={formControlClass} />
+                      <FormLabel htmlFor="lunar-year">農曆出生年（西元）
+                        <input id="lunar-year" inputMode="numeric" placeholder="例：1992" value={formState.lunar.year} aria-invalid={Boolean(errors.lunarYear)} aria-describedby={errors.lunarYear ? "lunar-year-error" : undefined} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, year: event.target.value } }))} className={formControlClass} />
                       </FormLabel>
-                      <FormLabel>月份
-                        <input type="number" min="1" max="12" placeholder="1–12" value={formState.lunar.month} aria-invalid={Boolean(errors.lunarMonth)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, month: event.target.value } }))} className={formControlClass} />
+                      <FormLabel htmlFor="lunar-month">月份
+                        <input id="lunar-month" type="number" min="1" max="12" placeholder="1–12" value={formState.lunar.month} aria-invalid={Boolean(errors.lunarMonth)} aria-describedby={errors.lunarMonth ? "lunar-month-error" : undefined} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, month: event.target.value } }))} className={formControlClass} />
                       </FormLabel>
-                      <FormLabel>日期
-                        <input type="number" min="1" max="30" placeholder="1–30" value={formState.lunar.day} aria-invalid={Boolean(errors.lunarDay)} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, day: event.target.value } }))} className={formControlClass} />
+                      <FormLabel htmlFor="lunar-day">日期
+                        <input id="lunar-day" type="number" min="1" max="30" placeholder="1–30" value={formState.lunar.day} aria-invalid={Boolean(errors.lunarDay)} aria-describedby={errors.lunarDay ? "lunar-day-error" : undefined} onChange={(event) => updateForm((previous) => ({ ...previous, lunar: { ...previous.lunar, day: event.target.value } }))} className={formControlClass} />
                       </FormLabel>
                     </div>
                     <ErrorMessage id="lunar-year-error">{errors.lunarYear}</ErrorMessage>
@@ -344,7 +346,7 @@ const Home = () => {
                 {activeDraft.timeMode === "branch" && (
                   <div className="mt-3">
                     <FormLabel htmlFor="time-branch">出生時辰</FormLabel>
-                    <select id="time-branch" value={activeDraft.timeBranch} aria-invalid={Boolean(errors.time)} onChange={(event) => updateForm((previous) => ({ ...previous, [previous.birthMode]: { ...previous[previous.birthMode], timeBranch: event.target.value as TimeBranchValue } }))} className={formControlClass}>
+                    <select id="time-branch" value={activeDraft.timeBranch} aria-invalid={Boolean(errors.time)} aria-describedby={errors.time ? "time-error" : undefined} onChange={(event) => updateForm((previous) => ({ ...previous, [previous.birthMode]: { ...previous[previous.birthMode], timeBranch: event.target.value as TimeBranchValue } }))} className={formControlClass}>
                       <option value="">請選擇時辰</option>
                       {SHICHEN_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </select>
@@ -354,7 +356,7 @@ const Home = () => {
                 {activeDraft.timeMode === "exact" && (
                   <div className="mt-3">
                     <FormLabel htmlFor="time-exact">出生時間</FormLabel>
-                    <input id="time-exact" type="time" value={activeDraft.timeExact} aria-invalid={Boolean(errors.time)} onChange={(event) => updateForm((previous) => ({ ...previous, [previous.birthMode]: { ...previous[previous.birthMode], timeExact: event.target.value } }))} className={formControlClass} />
+                    <input id="time-exact" type="time" value={activeDraft.timeExact} aria-invalid={Boolean(errors.time)} aria-describedby={errors.time ? "time-error" : undefined} onChange={(event) => updateForm((previous) => ({ ...previous, [previous.birthMode]: { ...previous[previous.birthMode], timeExact: event.target.value } }))} className={formControlClass} />
                   </div>
                 )}
                 {activeDraft.timeMode === "unknown" && <p className="mt-3 text-xs text-(--color-text-muted)">不知道也可以產生結果，生辰會顯示「吉時」。</p>}
@@ -414,6 +416,7 @@ const Home = () => {
         </div>
 
         <div ref={resultSectionRef} className="min-w-0 scroll-mt-24 lg:col-span-7">
+          <p className="sr-only" aria-live="polite" aria-atomic="true">{resultAnnouncement}</p>
           <div className="mb-3 px-1">
             <p className="text-xs font-semibold text-(--color-accent-text)">步驟 2</p>
             <h2 className="mt-1 text-xl font-bold text-(--color-text-primary)">查看疏文資料</h2>
